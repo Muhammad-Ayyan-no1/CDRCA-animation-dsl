@@ -1,75 +1,13 @@
-let CORE_3dFramesRenderer = function (
-  FPS,
-  loopAtEnd,
-  ObjectsOverTime,
-  gradientMap
-) {
-  //   const FPS = 60;
+// Core renderer dont edit
+function CORE_3dFramesRenderer(FPS, loopAtEnd, ObjectsOverTime, gradientMap) {
   const DeltaFrame = 1 / FPS;
   let totalFrames = 0;
   let currentOOT = 0;
   let currentStartTime = 0;
 
-  //   let loopAtEnd = false;
-
   gradientMap.minFilter = THREE.NearestFilter;
   gradientMap.magFilter = THREE.NearestFilter;
   gradientMap.needsUpdate = true;
-
-  //   let ObjectsOverTime = [
-  //     {
-  //       lerpTime: 500, // ms
-  //       stayTime: 2000, // ms
-  //       backgroundColor: 0x000000, // Black
-  //       Objects: [
-  //         {
-  //           Geometry: new THREE.BoxGeometry(),
-  //           Material: (function () {
-  //             const material = new THREE.MeshToonMaterial({ color: 0x00ff00 });
-  //             material.gradientMap = gradientMap;
-  //             return material;
-  //           })(),
-  //           outline: {
-  //             render: true,
-  //             color: 0x00ff00,
-  //             opacity: 0.5,
-  //           },
-  //           createMesh: true,
-  //           modifier: {
-  //             geometry: ``,
-  //             material: ``,
-  //             mesh: `mesh.rotation.x = totalTime * 1;
-  // mesh.rotation.y = totalTime * 1;`,
-  //           },
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       lerpTime: 500,
-  //       stayTime: 2000,
-  //       backgroundColor: 0x1a1a1a, // Dark gray
-  //       Objects: [
-  //         {
-  //           Geometry: new THREE.SphereGeometry(0.7, 32, 32),
-  //           Material: (function () {
-  //             const material = new THREE.MeshToonMaterial({ color: 0xff0000 });
-  //             material.gradientMap = gradientMap;
-  //             return material;
-  //           })(),
-  //           outline: {
-  //             render: true,
-  //             color: 0xffff00,
-  //             opacity: 0.5,
-  //           },
-  //           createMesh: true,
-  //           modifier: {
-  //             mesh: `mesh.position.y = Math.sin(totalTime) * 1;
-  // mesh.rotation.z = totalTime * 1.5;`,
-  //           },
-  //         },
-  //       ],
-  //     },
-  //   ];
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(
@@ -82,11 +20,8 @@ let CORE_3dFramesRenderer = function (
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  // Add lighting
   const light = new THREE.DirectionalLight(0xffffff, 1);
   light.position.set(5, 10, 7.5);
-  light.target = new THREE.Object3D();
-  light.target.position.set(0, 0, 0);
   scene.add(light);
   scene.add(light.target);
   const ambientLight = new THREE.AmbientLight(0x404040);
@@ -95,24 +30,16 @@ let CORE_3dFramesRenderer = function (
   camera.position.z = 5;
 
   function runmodifier(modifier, params, defaultReturn) {
-    return new Function(`
-    return function main(${params.join(",")}) {
-        ${modifier}
-        return ${defaultReturn}
-    }
-`)();
+    return new Function(
+      `return function main(${params.join(
+        ","
+      )}) { ${modifier}; return ${defaultReturn} }`
+    )();
   }
 
   function addOutlineToMesh(mesh, color, opacity) {
-    let parsedColor = color;
-    if (typeof color === "string" && color.startsWith("#")) {
-      parsedColor = color;
-    } else if (typeof color === "number") {
-      parsedColor = `#${color.toString(16).padStart(6, "0")}`;
-    }
-
     const outlineMaterial = new THREE.MeshBasicMaterial({
-      color: parsedColor,
+      color: color,
       side: THREE.BackSide,
       transparent: opacity < 1,
       opacity: opacity,
@@ -136,30 +63,20 @@ let CORE_3dFramesRenderer = function (
           "geometry"
         )(geometry, material, totalTime, lerpProgress, step);
       }
-      if (obj.modifier.material && obj.modifier.material !== "") {
-        material = runmodifier(
-          obj.modifier.material,
-          ["geometry", "material", "totalTime", "lerpProgress", "step"],
-          "material"
-        )(geometry, material, totalTime, lerpProgress, step);
-      }
       mesh = new THREE.Mesh(geometry, material);
     } else {
       mesh = obj.Mesh;
-      if (obj.modifier.mesh && obj.modifier.mesh !== "") {
+    }
+    if (obj.modifier.mesh) {
+      if (typeof obj.modifier.mesh === "function") {
+        mesh = obj.modifier.mesh(mesh, totalTime, lerpProgress, step);
+      } else if (obj.modifier.mesh !== "") {
         mesh = runmodifier(
           obj.modifier.mesh,
           ["mesh", "totalTime", "lerpProgress", "step"],
           "mesh"
         )(mesh, totalTime, lerpProgress, step);
       }
-    }
-    if (obj.modifier.mesh && obj.modifier.mesh !== "") {
-      mesh = runmodifier(
-        obj.modifier.mesh,
-        ["mesh", "totalTime", "lerpProgress", "step"],
-        "mesh"
-      )(mesh, totalTime, lerpProgress, step);
     }
     if (obj.outline && obj.outline.render) {
       mesh = addOutlineToMesh(
@@ -181,17 +98,13 @@ let CORE_3dFramesRenderer = function (
     scene.add(light.target);
     scene.add(ambientLight);
     renderer.setClearColor(ObjectsOverTime[currentOOT].backgroundColor);
-    let objs = ObjectsOverTime[currentOOT].Objects;
+    const objs = ObjectsOverTime[currentOOT].Objects;
     for (let i = 0; i < objs.length; i++) {
-      let mesh = getOBJmesh(objs[i], totalTime, lerpProgress, 1);
-      scene.add(mesh);
+      scene.add(getOBJmesh(objs[i], totalTime, lerpProgress, 1));
     }
   }
 
-  // Animation loop
-
   function animate(timestamp) {
-    // this code was updated by gpt 4.1
     requestAnimationFrame(animate);
     totalFrames += 1;
     if (currentStartTime === 0) currentStartTime = timestamp;
@@ -199,24 +112,20 @@ let CORE_3dFramesRenderer = function (
     let elapsed = timestamp - currentStartTime;
     let currentEntry = ObjectsOverTime[currentOOT];
 
-    // Advance OOT if needed (handles multiple skips if tab was inactive)
     while (elapsed >= currentEntry.lerpTime + currentEntry.stayTime) {
       if (loopAtEnd) {
         currentOOT = (currentOOT + 1) % ObjectsOverTime.length;
+      } else if (currentOOT < ObjectsOverTime.length - 1) {
+        currentOOT += 1;
       } else {
-        if (currentOOT < ObjectsOverTime.length - 1) {
-          currentOOT += 1;
-        } else {
-          // Stay at the last entry   or do events in future
-          break;
-        }
+        break;
       }
       currentStartTime += currentEntry.lerpTime + currentEntry.stayTime;
       elapsed = timestamp - currentStartTime;
       currentEntry = ObjectsOverTime[currentOOT];
     }
 
-    const totalTime = timestamp / 1000; // in seconds
+    const totalTime = timestamp / 1000;
     let lerpProgress = 1;
     if (elapsed < currentEntry.lerpTime) {
       lerpProgress = THREE.MathUtils.lerp(
@@ -228,94 +137,124 @@ let CORE_3dFramesRenderer = function (
     updateScene(totalTime, lerpProgress);
     renderer.render(scene, camera);
   }
-  function goToNextOOT() {
-    currentOOT++;
-  }
 
-  // Handle window resize
   window.addEventListener("resize", () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
+
   return {
-    goToNextOOT: goToNextOOT,
+    goToNextOOT: () => currentOOT++,
     init: () => animate(0),
   };
-};
-class baseProp {
-  constructor(renderer3d) {
-    this.CORE_3dFramesRendererInstance = renderer3d;
-  }
-  meshTranslation(mesh) {
-    return mesh;
-  }
-  goToNextOOT() {
-    CORE_3dFramesRendererInstance.goToNextOOT();
-  }
 }
 
+const ThreeJsSceneSystem = (function () {
+  class Prop {
+    getObjectConfig() {
+      throw new Error("getObjectConfig must be implemented");
+    }
+    modifyMesh(mesh, totalTime, lerpProgress, step) {
+      return mesh;
+    }
+  }
+
+  class RotatingCubeProp extends Prop {
+    constructor(color, rotationSpeed) {
+      super();
+      this.color = color;
+      this.rotationSpeed = rotationSpeed;
+    }
+    modifyMesh(mesh, totalTime) {
+      mesh.rotation.x = totalTime * this.rotationSpeed;
+      mesh.rotation.y = totalTime * this.rotationSpeed;
+      return mesh;
+    }
+    getObjectConfig() {
+      return {
+        Geometry: new THREE.BoxGeometry(),
+        Material: (() => {
+          const material = new THREE.MeshToonMaterial({ color: this.color });
+          material.gradientMap = this.gradientMap;
+          return material;
+        })(),
+        outline: { render: true, color: this.color, opacity: 0.5 },
+        createMesh: true,
+        modifier: { mesh: this.modifyMesh.bind(this) },
+      };
+    }
+  }
+
+  class BouncingSphereProp extends Prop {
+    modifyMesh(mesh, totalTime) {
+      mesh.position.y = Math.sin(totalTime) * 1;
+      mesh.rotation.z = totalTime * 1.5;
+      return mesh;
+    }
+    getObjectConfig() {
+      return {
+        Geometry: new THREE.SphereGeometry(0.7, 32, 32),
+        Material: (() => {
+          const material = new THREE.MeshToonMaterial({ color: 0xff0000 });
+          material.gradientMap = this.gradientMap;
+          return material;
+        })(),
+        outline: { render: true, color: 0xffff00, opacity: 0.5 },
+        createMesh: true,
+        modifier: { mesh: this.modifyMesh.bind(this) },
+      };
+    }
+  }
+
+  class Scene {
+    constructor(lerpTime, stayTime, backgroundColor, props) {
+      this.lerpTime = lerpTime;
+      this.stayTime = stayTime;
+      this.backgroundColor = backgroundColor;
+      this.props = props;
+    }
+    getConfig() {
+      return {
+        lerpTime: this.lerpTime,
+        stayTime: this.stayTime,
+        backgroundColor: this.backgroundColor,
+        Objects: this.props.map((prop) => prop.getObjectConfig()),
+      };
+    }
+  }
+
+  // Public API
+  return {
+    Prop,
+    RotatingCubeProp,
+    BouncingSphereProp,
+    Scene,
+    init(FPS, loopAtEnd, scenes, gradientMap) {
+      const objectsOverTime = scenes.map((scene) => scene.getConfig());
+      const renderer = CORE_3dFramesRenderer(
+        FPS,
+        loopAtEnd,
+        objectsOverTime,
+        gradientMap
+      );
+      renderer.init();
+      return renderer;
+    },
+  };
+})();
+
+// Usage
 const gradientMap = new THREE.DataTexture(
   new Uint8Array([255, 255, 255, 255, 255, 255, 255, 255, 255]),
   3,
   1,
   THREE.RGBFormat
 );
-let prop = new baseProp();
-let ObjectsOverTime = [
-  {
-    lerpTime: 500, // ms
-    stayTime: 2000, // ms
-    backgroundColor: 0x000000, // Black
-    Objects: [
-      {
-        Geometry: new THREE.BoxGeometry(),
-        Material: (function () {
-          const material = new THREE.MeshToonMaterial({ color: 0x00ff00 });
-          material.gradientMap = gradientMap;
-          return material;
-        })(),
-        outline: {
-          render: true,
-          color: 0x00ff00,
-          opacity: 0.5,
-        },
-        createMesh: true,
-        modifier: {
-          geometry: ``,
-          material: ``,
-          mesh: `return prop.meshTranslation(mesh)`,
-        },
-      },
-    ],
-  },
-  {
-    lerpTime: 500,
-    stayTime: 2000,
-    backgroundColor: 0x1a1a1a, // Dark gray
-    Objects: [
-      {
-        Geometry: new THREE.SphereGeometry(0.7, 32, 32),
-        Material: (function () {
-          const material = new THREE.MeshToonMaterial({ color: 0xff0000 });
-          material.gradientMap = gradientMap;
-          return material;
-        })(),
-        outline: {
-          render: true,
-          color: 0xffff00,
-          opacity: 0.5,
-        },
-        createMesh: true,
-        modifier: {
-          mesh: `mesh.position.y = Math.sin(totalTime) * 1;
-mesh.rotation.z = totalTime * 1.5;`,
-        },
-      },
-    ],
-  },
-];
-
-let r = CORE_3dFramesRenderer(60, true, ObjectsOverTime, gradientMap);
-r.init();
-prop.CORE_3dFramesRendererInstance = r;
+const greenCube = new ThreeJsSceneSystem.RotatingCubeProp(0x00ff00, 1);
+const redSphere = new ThreeJsSceneSystem.BouncingSphereProp();
+const scene1 = new ThreeJsSceneSystem.Scene(500, 2000, 0x000000, [greenCube]);
+const scene2 = new ThreeJsSceneSystem.Scene(500, 2000, 0x1a1a1a, [redSphere]);
+greenCube.gradientMap = gradientMap; // Ensure gradientMap is passed to props
+redSphere.gradientMap = gradientMap;
+ThreeJsSceneSystem.init(60, true, [scene1, scene2], gradientMap);
