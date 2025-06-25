@@ -1,33 +1,76 @@
-// Initialize the scene, camera, and renderer
 const FPS = 60;
 const DeltaFrame = 1 / FPS;
 let totalFrames = 0;
+let currentOOT = 0;
+let currentStartTime = 0;
+
+let loopAtEnd = false;
+
+const gradientMap = new THREE.DataTexture(
+  new Uint8Array([255, 255, 255, 255, 255, 255, 255, 255, 255]),
+  3,
+  1,
+  THREE.RGBFormat
+);
+gradientMap.minFilter = THREE.NearestFilter;
+gradientMap.magFilter = THREE.NearestFilter;
+gradientMap.needsUpdate = true;
+
 let ObjectsOverTime = [
   {
-    lerpTime: 5, // ms
-    stayTime: 1000 * DeltaFrame,
+    lerpTime: 500, // ms
+    stayTime: 2000, // ms
+    backgroundColor: 0x000000, // Black
     Objects: [
       {
         Geometry: new THREE.BoxGeometry(),
-        Material: new THREE.MeshToonMaterial({ color: 0x00ff00 }),
+        Material: (function () {
+          const material = new THREE.MeshToonMaterial({ color: 0x00ff00 });
+          material.gradientMap = gradientMap;
+          return material;
+        })(),
         outline: {
           render: true,
           color: 0x00ff00,
           opacity: 0.5,
         },
         createMesh: true,
-        // code which can edit stuff   (js)
         modifier: {
           geometry: ``,
           material: ``,
-          mesh: `mesh.rotation.x += totalFrames * DeltaFrame;
-          mesh.rotation.y += totalFrames * DeltaFrame;
-          console.log(step)`,
+          mesh: `mesh.rotation.x = totalTime * 1;
+mesh.rotation.y = totalTime * 1;`,
+        },
+      },
+    ],
+  },
+  {
+    lerpTime: 500,
+    stayTime: 2000,
+    backgroundColor: 0x1a1a1a, // Dark gray
+    Objects: [
+      {
+        Geometry: new THREE.SphereGeometry(0.7, 32, 32),
+        Material: (function () {
+          const material = new THREE.MeshToonMaterial({ color: 0xff0000 });
+          material.gradientMap = gradientMap;
+          return material;
+        })(),
+        outline: {
+          render: true,
+          color: 0xffff00,
+          opacity: 0.5,
+        },
+        createMesh: true,
+        modifier: {
+          mesh: `mesh.position.y = Math.sin(totalTime) * 1;
+mesh.rotation.z = totalTime * 1.5;`,
         },
       },
     ],
   },
 ];
+
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
   75,
@@ -36,45 +79,37 @@ const camera = new THREE.PerspectiveCamera(
   1000
 );
 const renderer = new THREE.WebGLRenderer();
-
-// Set up the renderer
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Create a directional light for toon shading
+// Add lighting
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(5, 10, 7.5);
+light.target = new THREE.Object3D();
+light.target.position.set(0, 0, 0);
 scene.add(light);
+scene.add(light.target);
+const ambientLight = new THREE.AmbientLight(0x404040);
+scene.add(ambientLight);
 
-// // Create a simple cube as our first object with toon material
-// const geometry = new THREE.BoxGeometry();
-// const material = new THREE.MeshToonMaterial({ color: 0x00ff00 });
-// const cube = new THREE.Mesh(geometry, material);
-// scene.add(cube);
+camera.position.z = 5;
 
-let currentOOT = 0;
-function runmodifier(modifier, prams, defaultReturn) {
-  return new Function(`function (){
-     function main(${prams.join(",")}){
-${modifier}
-return ${defaultReturn}
-        }
-return main
-        }`)();
-}
-function addOutlineToMesh(mesh, color, opacity) {
-  // Ensure color is a number (handles "0x000000" or "#000000" or 0x000000)
-  let parsedColor = color;
-  if (typeof color === "string") {
-    if (color.startsWith("0x")) {
-      parsedColor = parseInt(color, 16);
-    } else if (color.startsWith("#")) {
-      parsedColor = color;
+function runmodifier(modifier, params, defaultReturn) {
+  return new Function(`
+    return function main(${params.join(",")}) {
+        ${modifier}
+        return ${defaultReturn}
     }
-  }
+`)();
+}
 
-  // Fallback if geometry is missing
-  if (!mesh.geometry) return mesh;
+function addOutlineToMesh(mesh, color, opacity) {
+  let parsedColor = color;
+  if (typeof color === "string" && color.startsWith("#")) {
+    parsedColor = color;
+  } else if (typeof color === "number") {
+    parsedColor = `#${color.toString(16).padStart(6, "0")}`;
+  }
 
   const outlineMaterial = new THREE.MeshBasicMaterial({
     color: parsedColor,
@@ -83,83 +118,114 @@ function addOutlineToMesh(mesh, color, opacity) {
     opacity: opacity,
     depthWrite: false,
   });
-
   const outlineMesh = new THREE.Mesh(mesh.geometry.clone(), outlineMaterial);
-  outlineMesh.position.copy(mesh.position);
-  outlineMesh.rotation.copy(mesh.rotation);
-  outlineMesh.scale.copy(mesh.scale).multiplyScalar(1.05);
-
+  outlineMesh.scale.multiplyScalar(1.05);
   mesh.add(outlineMesh);
-
   return mesh;
 }
-function getOBJmesh(obj) {
-  let mesh = (function () {
-    if (obj.createMesh) {
-      if (obj.modifier.Geometry && obj.modifier.Geometry != "") {
-        obj.Geometry = runmodifier(
-          obj.modifier.Geometry,
-          ["Geometry", "Material", "step"],
-          "Geometry"
-        )(obj.Geometry, obj.Material, 0);
-      }
-      if (obj.modifier.Material && obj.modifier.Material != "") {
-        obj.Material = runmodifier(
-          obj.modifier.Material,
-          ["Geometry", "Material", "step"],
-          "Material"
-        )(obj.Geometry, obj.Material, 0);
-      }
-      return new THREE.Mesh(obj.Geometry, obj.Material);
-    } else {
-      if (obj.modifier.Mesh && obj.modifier.Mesh != "") {
-        obj.Mesh = runmodifier(
-          obj.modifier.Mesh,
-          ["Mesh", "step"],
-          "Mesh"
-        )(obj.Mesh, 0);
-      }
-      return obj.Mesh;
+
+function getOBJmesh(obj, totalTime, lerpProgress, step) {
+  let mesh;
+  if (obj.createMesh) {
+    let geometry = obj.Geometry;
+    let material = obj.Material.clone();
+    if (obj.modifier.geometry && obj.modifier.geometry !== "") {
+      geometry = runmodifier(
+        obj.modifier.geometry,
+        ["geometry", "material", "totalTime", "lerpProgress", "step"],
+        "geometry"
+      )(geometry, material, totalTime, lerpProgress, step);
     }
-  })();
-  if (obj.modifier.Mesh && obj.modifier.Mesh != "") {
-    mesh = runmodifier(obj.modifier.Mesh, ["Mesh", "step"], "Mesh")(mesh, 1);
+    if (obj.modifier.material && obj.modifier.material !== "") {
+      material = runmodifier(
+        obj.modifier.material,
+        ["geometry", "material", "totalTime", "lerpProgress", "step"],
+        "material"
+      )(geometry, material, totalTime, lerpProgress, step);
+    }
+    mesh = new THREE.Mesh(geometry, material);
+  } else {
+    mesh = obj.Mesh;
+    if (obj.modifier.mesh && obj.modifier.mesh !== "") {
+      mesh = runmodifier(
+        obj.modifier.mesh,
+        ["mesh", "totalTime", "lerpProgress", "step"],
+        "mesh"
+      )(mesh, totalTime, lerpProgress, step);
+    }
+  }
+  if (obj.modifier.mesh && obj.modifier.mesh !== "") {
+    mesh = runmodifier(
+      obj.modifier.mesh,
+      ["mesh", "totalTime", "lerpProgress", "step"],
+      "mesh"
+    )(mesh, totalTime, lerpProgress, step);
   }
   if (obj.outline && obj.outline.render) {
-    mesh = addOutlineToMesh(mesh, obj.outline.color, obj.outline.opacity);
+    mesh = addOutlineToMesh(
+      mesh,
+      obj.outline.color,
+      obj.outline.opacity * lerpProgress
+    );
+  }
+  if (mesh.material) {
+    mesh.material.transparent = true;
+    mesh.material.opacity = lerpProgress;
   }
   return mesh;
 }
-// TODO   idk how id do smooth lerping / morphing
-function lerpNewOOT() {}
-let hasOOTinc = false;
-function updateScene() {
+
+function updateScene(totalTime, lerpProgress) {
   scene.clear();
+  scene.add(light);
+  scene.add(light.target);
+  scene.add(ambientLight);
+  renderer.setClearColor(ObjectsOverTime[currentOOT].backgroundColor);
   let objs = ObjectsOverTime[currentOOT].Objects;
   for (let i = 0; i < objs.length; i++) {
-    let mesh = getOBJmesh(objs[i]);
+    let mesh = getOBJmesh(objs[i], totalTime, lerpProgress, 1);
     scene.add(mesh);
   }
-  if (!hasOOTinc && ObjectsOverTime[currentOOT + 1])
-    setTimeout(() => {
-      currentOOT++;
-      hasOOTinc = true;
-    }, ObjectsOverTime[currentOOT].stayTime);
 }
 
-// Position the camera
-camera.position.z = 5;
-
 // Animation loop
-function animate() {
+
+function animate(timestamp) {
+  // this code was updated by gpt 4.1
   requestAnimationFrame(animate);
   totalFrames += 1;
-  updateScene();
+  if (currentStartTime === 0) currentStartTime = timestamp;
+
+  let elapsed = timestamp - currentStartTime;
+  let currentEntry = ObjectsOverTime[currentOOT];
+
+  // Advance OOT if needed (handles multiple skips if tab was inactive)
+  while (elapsed >= currentEntry.lerpTime + currentEntry.stayTime) {
+    if (loopAtEnd) {
+      currentOOT = (currentOOT + 1) % ObjectsOverTime.length;
+    } else {
+      if (currentOOT < ObjectsOverTime.length - 1) {
+        currentOOT += 1;
+      } else {
+        // Stay at the last entry   or do events in future
+        break;
+      }
+    }
+    currentStartTime += currentEntry.lerpTime + currentEntry.stayTime;
+    elapsed = timestamp - currentStartTime;
+    currentEntry = ObjectsOverTime[currentOOT];
+  }
+
+  const totalTime = timestamp / 1000; // in seconds
+  let lerpProgress = 1;
+  if (elapsed < currentEntry.lerpTime) {
+    lerpProgress = THREE.MathUtils.lerp(0, 1, elapsed / currentEntry.lerpTime);
+  }
+  updateScene(totalTime, lerpProgress);
   renderer.render(scene, camera);
 }
 
-// Start the animation
-animate();
+animate(0);
 
 // Handle window resize
 window.addEventListener("resize", () => {
