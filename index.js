@@ -150,7 +150,7 @@ function CORE_3dFramesRenderer(FPS, loopAtEnd, ObjectsOverTime, gradientMap) {
   };
 }
 
-const ThreeJsSceneSystem = (function () {
+const CORE_3d_PROPSsceneSYS = (function () {
   class Prop {
     getObjectConfig() {
       throw new Error("getObjectConfig must be implemented");
@@ -227,8 +227,10 @@ const ThreeJsSceneSystem = (function () {
   // Public API
   return {
     Prop,
-    RotatingCubeProp,
-    BouncingSphereProp,
+    exampleProps: {
+      RotatingCubeProp,
+      BouncingSphereProp,
+    },
     Scene,
     init(FPS, loopAtEnd, scenes, gradientMap) {
       const objectsOverTime = scenes.map((scene) => scene.getConfig());
@@ -244,17 +246,98 @@ const ThreeJsSceneSystem = (function () {
   };
 })();
 
-// Usage
-const gradientMap = new THREE.DataTexture(
-  new Uint8Array([255, 255, 255, 255, 255, 255, 255, 255, 255]),
-  3,
-  1,
-  THREE.RGBFormat
-);
-const greenCube = new ThreeJsSceneSystem.RotatingCubeProp(0x00ff00, 1);
-const redSphere = new ThreeJsSceneSystem.BouncingSphereProp();
-const scene1 = new ThreeJsSceneSystem.Scene(500, 2000, 0x000000, [greenCube]);
-const scene2 = new ThreeJsSceneSystem.Scene(500, 2000, 0x1a1a1a, [redSphere]);
-greenCube.gradientMap = gradientMap; // Ensure gradientMap is passed to props
-redSphere.gradientMap = gradientMap;
-ThreeJsSceneSystem.init(60, true, [scene1, scene2], gradientMap);
+class ActionProp extends CORE_3d_PROPSsceneSYS.Prop {
+  constructor(baseProp, modifier) {
+    super();
+    this.baseProp = baseProp;
+    this.modifier = modifier;
+  }
+  getObjectConfig() {
+    const config = this.baseProp.getObjectConfig();
+    config.modifier.mesh = this.modifier;
+    return config;
+  }
+}
+
+// PSA_SYS function abstracts prop system with actions system
+function PSA_SYS(PSA) {
+  const scenes = [];
+  for (const psaScene of PSA.scenes) {
+    scenes.push(
+      new CORE_3d_PROPSsceneSYS.Scene(
+        psaScene.lerpTime,
+        psaScene.stayTimeInit,
+        psaScene.backgroundColor,
+        psaScene.PropsDef
+      )
+    );
+    for (const action of psaScene.actions) {
+      const modifierFunctions = action.action(psaScene.PropsDef);
+      const actionProps = psaScene.PropsDef.map(
+        (prop, index) => new ActionProp(prop, modifierFunctions[index])
+      );
+      scenes.push(
+        new CORE_3d_PROPSsceneSYS.Scene(
+          action.lerpTime,
+          action.stayTime,
+          psaScene.backgroundColor,
+          actionProps
+        )
+      );
+    }
+    scenes.push(
+      new CORE_3d_PROPSsceneSYS.Scene(
+        0,
+        psaScene.stayTimeEnd,
+        psaScene.backgroundColor,
+        psaScene.PropsDef
+      )
+    );
+  }
+  return {
+    init: (FPS, loopAtEnd) => {
+      const gradientMap = PSA.defaultGredientMap || PSA.defaultGradientMap;
+      CORE_3d_PROPSsceneSYS.init(FPS, loopAtEnd, scenes, gradientMap);
+    },
+  };
+}
+
+const PSA = {
+  defaultGredientMap: new THREE.DataTexture(
+    new Uint8Array([255, 255, 255, 255, 255, 255, 255, 255, 255]),
+    3,
+    1,
+    THREE.RGBFormat
+  ),
+  scenes: [
+    {
+      stayTimeInit: 1000,
+      stayTimeEnd: 1000,
+      lerpTime: 500,
+      backgroundColor: 0x000000,
+      PropsDef: [
+        new CORE_3d_PROPSsceneSYS.exampleProps.RotatingCubeProp(0x00ff00, 1),
+      ],
+      actions: [
+        {
+          stayTime: 2000,
+          lerpTime: 500,
+          action: (PropsArr) => {
+            // u can also call any method and hence do default stuff too
+            // if (PropsArr[0].doAction) {
+            //   PropsArr[0].doAction(); // after this commit are supported
+            // }
+            return PropsArr.map(
+              (prop) => (mesh, totalTime, lerpProgress, step) => {
+                mesh.position.x = Math.sin(totalTime);
+                return mesh;
+              }
+            );
+          },
+        },
+      ],
+    },
+  ],
+};
+
+PSA_SYS(PSA).init(60, false);
