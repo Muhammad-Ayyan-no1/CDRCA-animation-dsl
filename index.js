@@ -351,7 +351,7 @@ let ObjectAnimationSystem = function () {
 
   // PSA_SYS(PSA).init(60, false);
 };
-ObjectAnimationSystem_INS = ObjectAnimationSystem();
+let ObjectAnimationSystem_INS = ObjectAnimationSystem();
 
 ObjectAnimationSystem_INS.main({
   defaultGredientMap: new THREE.DataTexture(
