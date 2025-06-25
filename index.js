@@ -228,8 +228,9 @@ let CORE_3dFramesRenderer = function (
     updateScene(totalTime, lerpProgress);
     renderer.render(scene, camera);
   }
-
-  animate(0);
+  function goToNextOOT() {
+    currentOOT++;
+  }
 
   // Handle window resize
   window.addEventListener("resize", () => {
@@ -237,13 +238,30 @@ let CORE_3dFramesRenderer = function (
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
+  return {
+    goToNextOOT: goToNextOOT,
+    init: () => animate(0),
+  };
 };
+class baseProp {
+  constructor(renderer3d) {
+    this.CORE_3dFramesRendererInstance = renderer3d;
+  }
+  meshTranslation(mesh) {
+    return mesh;
+  }
+  goToNextOOT() {
+    CORE_3dFramesRendererInstance.goToNextOOT();
+  }
+}
+
 const gradientMap = new THREE.DataTexture(
   new Uint8Array([255, 255, 255, 255, 255, 255, 255, 255, 255]),
   3,
   1,
   THREE.RGBFormat
 );
+let prop = new baseProp();
 let ObjectsOverTime = [
   {
     lerpTime: 500, // ms
@@ -266,8 +284,7 @@ let ObjectsOverTime = [
         modifier: {
           geometry: ``,
           material: ``,
-          mesh: `mesh.rotation.x = totalTime * 1;
-mesh.rotation.y = totalTime * 1;`,
+          mesh: `return prop.meshTranslation(mesh)`,
         },
       },
     ],
@@ -299,4 +316,6 @@ mesh.rotation.z = totalTime * 1.5;`,
   },
 ];
 
-CORE_3dFramesRenderer(60, true, ObjectsOverTime, gradientMap);
+let r = CORE_3dFramesRenderer(60, true, ObjectsOverTime, gradientMap);
+r.init();
+prop.CORE_3dFramesRendererInstance = r;
