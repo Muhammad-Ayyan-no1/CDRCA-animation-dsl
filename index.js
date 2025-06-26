@@ -156,20 +156,80 @@ let ObjectAnimationSystem = function () {
 
   const CORE_3d_PROPSsceneSYS = (function () {
     class Prop {
+      constructor() {
+        this.initPRE();
+        // super();
+        this.default = {
+          namePrefix: "BASIC_PROP",
+        };
+        this.knownProps = {};
+        this.propType = [["basicProp"]]; // its a 2d arr because you have context like  type 1 -> type 2     but also type N -> Type M     so letting having mutliple tags where each tag refers to TYPE abstraction   tells exact composition of props (maybe useful in animation tracking)
+        this.initPOST();
+      }
+      addType(type, index) {
+        this.propType[Math.min(this.propType.length, index)].push(type);
+      }
+
+      initPRE() {
+        // console.warn("initPRE not defined for prop", this);
+      }
+
+      initPOST() {
+        // console.warn("initPRE not defined for prop", this);
+      }
+
       getObjectConfig() {
-        throw new Error("getObjectConfig must be implemented");
+        throw new Error(
+          "getObjectConfig must be implemented for the prop",
+          this
+        );
       }
       modifyMesh(mesh, totalTime, lerpProgress, step) {
         return mesh;
       }
+      giveMessage(message) {
+        if (!message.type || !message.value) return;
+        this.onmessage(message);
+      }
+      onmessage(message) {
+        console.warn("Message was given no, handling done", message, this);
+      }
+      sendMessage(message, propName) {
+        if (!message.type || !message.value) {
+          console.warn("message invelid, message");
+          return;
+        }
+        try {
+          this.knownProps[propName].giveMessage(message);
+        } catch (error1) {
+          try {
+            propName.giveMessage(message);
+          } catch (error2) {
+            console.error(
+              "tried " +
+                propName +
+                " as name got error, tried it as prop and also got err",
+              error1,
+              error2,
+              this
+            );
+          }
+        }
+        return;
+      }
     }
 
     class RotatingCubeProp extends Prop {
+      initPRE() {
+        this.name = "rotatingCube";
+      }
+      initPOST() {}
       constructor(color, rotationSpeed) {
         super();
         this.color = color;
         this.rotationSpeed = rotationSpeed;
       }
+
       modifyMesh(mesh, totalTime) {
         mesh.rotation.x = totalTime * this.rotationSpeed;
         mesh.rotation.y = totalTime * this.rotationSpeed;
@@ -191,11 +251,16 @@ let ObjectAnimationSystem = function () {
     }
 
     class BouncingSphereProp extends Prop {
+      initPRE() {
+        this.name = "BouncingSphereProp";
+      }
+      initPOST() {}
       modifyMesh(mesh, totalTime) {
         mesh.position.y = Math.sin(totalTime) * 1;
         mesh.rotation.z = totalTime * 1.5;
         return mesh;
       }
+
       getObjectConfig() {
         return {
           Geometry: new THREE.SphereGeometry(0.7, 32, 32),
@@ -210,12 +275,58 @@ let ObjectAnimationSystem = function () {
         };
       }
     }
+    // Deep clone with circular reference support for class instances
+    function deepClone(obj, seen = new WeakMap()) {
+      if (obj === null || typeof obj !== "object") return obj;
+
+      if (seen.has(obj)) return seen.get(obj);
+
+      let clone;
+      if (Array.isArray(obj)) {
+        clone = [];
+        seen.set(obj, clone);
+        obj.forEach((item, i) => {
+          clone[i] = deepClone(item, seen);
+        });
+        return clone;
+      }
+
+      // Handle class instances
+      clone = Object.create(Object.getPrototypeOf(obj));
+      seen.set(obj, clone);
+
+      for (let key of Reflect.ownKeys(obj)) {
+        clone[key] = deepClone(obj[key], seen);
+      }
+
+      return clone;
+    }
 
     class Scene {
       constructor(lerpTime, stayTime, backgroundColor, props) {
         this.lerpTime = lerpTime;
         this.stayTime = stayTime;
         this.backgroundColor = backgroundColor;
+
+        let knownProps = {};
+        for (let prop of props) {
+          // whatever  it works
+          knownProps[
+            String(
+              prop.name ||
+                (() => {
+                  prop.default = prop.default.namePrefix || "";
+                  let r = prop.default + "#" + Math.random() * 10 ** 17; // for int
+                  prop.name = r;
+                  return r;
+                })()
+            )
+          ] = prop;
+        }
+        for (let prop of props) {
+          // prop.knownProps = structuredClone(knownProps);
+          prop.knownProps = deepClone(knownProps);
+        }
         this.props = props;
       }
       getConfig() {
@@ -384,6 +495,7 @@ ObjectAnimationSystem_INS.main({
             return PropsArr.map(
               (prop) => (mesh, totalTime, lerpProgress, step) => {
                 mesh.position.x = Math.sin(totalTime);
+                mesh.position.y = Math.cos(totalTime);
                 return mesh;
               }
             );
