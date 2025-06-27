@@ -1,4 +1,4 @@
-// THE DSl parser  for making everything a .cdrca  file
+// THE DSl parser  for making everything a .cdrca  file (node js only)
 /*
 NOTE: NOT worked on big compiler but on small solo project          (if anyone edits the parser update the previous NOTE)
 SYNTAX: bellow
@@ -10,7 +10,7 @@ CODE :
 JS {
 }  to embeed a js fn call using (()->{YOUR CODE from JS block})()
 
-for import header or any other header
+for import header or any other header (NODE JS only)
 @IMPORT File Path       to hoist a file
 @AddImport File Path    to add a file at this position
 files are just copied and pasted at that position  like #include in cpp  but anywhere
@@ -34,68 +34,11 @@ SUB hedaers include actions, default props
 
 
 example:
-! #custom header stuff# SCENE :: Yes can combine headers, its just a compile time check not needed to be separated @ AS well as this can be anything @
-! :: --- PROPS HEADER DEFAULTS ACTIONS :: defaults ---
-//--- this of scene 1  btw --- and these "---" are just comment no Compiler stuff
+nope,  i dont understand this syntax myself after writing the parser
+but it works so i dont care
 */
 const OAS_PARSER = function () {
-  function parseMainHeaders(string) {
-    const headers = [];
-    let position = 0;
-    while (position < string.length) {
-      const nextHeader = findNextHeaderStart(string, position);
-      if (!nextHeader) {
-        if (position < string.length) {
-          throw new Error(
-            `Unexpected content at position ${position}: "${string.slice(
-              position,
-              position + 20
-            )}..."`
-          );
-        }
-        break;
-      }
-      const [startPos, N, C, headerContent] = nextHeader;
-      const parts = headerContent.trim().split("::");
-      const usedTypes = parts[0].trim().split(/\s+/);
-      const comment = parts.length > 1 ? parts[1].trim() : "";
-      const seq = C.repeat(N);
-      const endTag = "!" + seq + "END" + seq;
-      const headerLineEnd =
-        string.indexOf("\n", startPos) === -1
-          ? string.length
-          : string.indexOf("\n", startPos);
-      const contentStart = headerLineEnd + 1;
-      let endPos = -1;
-      let searchPos = contentStart;
-      while (searchPos < string.length) {
-        let lineEnd = string.indexOf("\n", searchPos);
-        if (lineEnd === -1) lineEnd = string.length;
-        const line = string.slice(searchPos, lineEnd).trimStart();
-        if (line.startsWith(endTag)) {
-          endPos = searchPos + line.indexOf(endTag);
-          break;
-        }
-        searchPos = lineEnd + 1;
-      }
-      if (endPos === -1) {
-        throw new Error(
-          `Unclosed main header starting at position ${startPos}`
-        );
-      }
-      const contentString = string.slice(contentStart, endPos);
-      const parsedContent = parseContent(contentString);
-      const headerNode = {
-        USED: usedTypes,
-        COMMENT: comment,
-        CODE: parsedContent,
-      };
-      headers.push(headerNode);
-      position = endPos + endTag.length;
-    }
-    return headers;
-  }
-
+  // --- Header Parsing Functions ---
   function findNextHeaderStart(string, position) {
     while (position < string.length) {
       if (string[position] === "!") {
@@ -176,14 +119,14 @@ const OAS_PARSER = function () {
           const subContentEnd = nextColon;
           const subContentString = string.slice(subContentStart, subContentEnd);
           const parsedSubContent = parseContent(subContentString);
-          const subheaderNode = {
-            USED: usedTypes,
-            COMMENT: comment,
-            CODE: parsedSubContent,
-          };
-          const newPosition =
-            nextColon + string.slice(nextColon).indexOf("END") + 3;
-          return [subheaderNode, newPosition];
+          return [
+            {
+              USED: usedTypes,
+              COMMENT: comment,
+              CODE: parsedSubContent,
+            },
+            nextColon + string.slice(nextColon).indexOf("END") + 3,
+          ];
         }
       } else {
         nesting += 1;
@@ -193,13 +136,319 @@ const OAS_PARSER = function () {
     throw new Error(`Unclosed subheader at position ${position}`);
   }
 
+  function parseTopLevel(string) {
+    const items = [];
+    let position = 0;
+    while (position < string.length) {
+      const nextHeader = findNextHeaderStart(string, position);
+      if (nextHeader) {
+        const [startPos, N, C, headerContent] = nextHeader;
+        const codeBefore = string.slice(position, startPos).trim();
+        if (codeBefore) {
+          items.push({ TYPE: "CODE", VALUE: codeBefore });
+        }
+        const parts = headerContent.trim().split("::");
+        const usedTypes = parts[0].trim().split(/\s+/);
+        const comment = parts.length > 1 ? parts[1].trim() : "";
+        const seq = C.repeat(N);
+        const endTag = "!" + seq + "END" + seq;
+        const headerLineEnd =
+          string.indexOf("\n", startPos) === -1
+            ? string.length
+            : string.indexOf("\n", startPos);
+        const contentStart = headerLineEnd + 1;
+        const endPos = string.indexOf(endTag, contentStart);
+        if (endPos === -1) {
+          throw new Error(`Unclosed main header at position ${startPos}`);
+        }
+        const contentString = string.slice(contentStart, endPos);
+        const parsedContent = parseContent(contentString);
+        items.push({
+          TYPE: "HEADER",
+          VALUE: { USED: usedTypes, COMMENT: comment, CODE: parsedContent },
+        });
+        position = endPos + endTag.length;
+      } else {
+        const codeAfter = string.slice(position).trim();
+        if (codeAfter) {
+          items.push({ TYPE: "CODE", VALUE: codeAfter });
+        }
+        break;
+      }
+    }
+    return items;
+  }
+
+  // --- Statement Parsing Functions ---
+  function parseStatements(code) {
+    const tokens = defaultTokenizer(code);
+    const statements = [];
+    let pos = 0;
+    while (pos < tokens.length) {
+      while (pos < tokens.length && tokens[pos].value === "\n") pos++;
+      if (pos >= tokens.length) break;
+      const statement = parseStatement(tokens, pos);
+      statements.push(statement);
+      pos = statement.newPosition;
+    }
+    return statements;
+  }
+
+  function parseStatement(tokens, pos) {
+    const token = tokens[pos];
+    switch (token.value) {
+      case "@IMPORT":
+        return parseImport(tokens, pos, "IMPORT");
+      case "@AddImport":
+        return parseImport(tokens, pos, "ADD_IMPORT");
+      case "JS":
+        return parseJSBlock(tokens, pos);
+      case "def":
+        return parseDefStatement(tokens, pos);
+      case "use":
+        return parsePropUse(tokens, pos);
+      case "add":
+        return parseActionUse(tokens, pos);
+      case "gredientMap":
+        return parseDefault(tokens, pos, "GREDIENT_MAP");
+      case "BGcolor":
+        return parseDefault(tokens, pos, "BGCOLOR");
+      case "//":
+        return parseComment(tokens, pos);
+      default:
+        throw new Error(`Unexpected token at position ${pos}: ${token.value}`);
+    }
+  }
+
+  function parseImport(tokens, pos, type) {
+    pos++;
+    if (pos >= tokens.length) throw new Error(`${type} missing file path`);
+    const path = tokens[pos].value;
+    pos++;
+    while (pos < tokens.length && tokens[pos].value !== "\n") pos++;
+    return { type, prams: { path }, newPosition: pos };
+  }
+
+  function parseJSBlock(tokens, pos) {
+    pos++;
+    if (pos >= tokens.length || tokens[pos].value !== "{")
+      throw new Error("Expected '{' after JS");
+    pos++;
+    let depth = 1;
+    const codeTokens = [];
+    while (pos < tokens.length && depth > 0) {
+      const token = tokens[pos];
+      if (token.value === "{") depth++;
+      else if (token.value === "}") depth--;
+      if (depth > 0) codeTokens.push(token);
+      pos++;
+    }
+    if (depth !== 0) throw new Error("Unclosed JS block");
+    const code = codeTokens.map((t) => t.value).join(" ");
+    return { type: "JS_BLOCK", prams: { code }, newPosition: pos };
+  }
+
+  function parseDefStatement(tokens, pos) {
+    pos++;
+    if (pos >= tokens.length)
+      throw new Error("Expected PROP or ACTION after 'def'");
+    const type = tokens[pos].value;
+    if (type === "PROP") return parsePropDef(tokens, pos);
+    if (type === "ACTION") return parseActionDef(tokens, pos);
+    throw new Error(`Unexpected definition type: ${type}`);
+  }
+
+  function parsePropDef(tokens, pos) {
+    // pos++; // Skip "PROP"
+    // pos++;
+    pos += 2;
+    if (pos >= tokens.length)
+      throw new Error("Expected property name in PROPS defination");
+    const name = tokens[pos].value;
+    pos++;
+    let abstracts = false;
+    let optionOtherPROP = null;
+    if (pos < tokens.length && tokens[pos].value === "abstracts") {
+      abstracts = true;
+      pos++;
+      if (pos >= tokens.length)
+        throw new Error("Expected other PROP name after 'abstracts'");
+      optionOtherPROP = tokens[pos].value;
+      pos++;
+    }
+    if (pos >= tokens.length || tokens[pos].value !== "{")
+      throw new Error("Expected '{' in property definition");
+    pos++;
+    let depth = 1;
+    const codeTokens = [];
+    while (pos < tokens.length && depth > 0) {
+      const token = tokens[pos];
+      if (token.value === "{") depth++;
+      else if (token.value === "}") depth--;
+      if (depth > 0) codeTokens.push(token);
+      pos++;
+    }
+    if (depth !== 0) throw new Error("Unclosed property definition");
+    const code = codeTokens.map((t) => t.value).join(" ");
+    return {
+      type: "PROP_DEF",
+      prams: { name, abstracts, optionOtherPROP, code },
+      newPosition: pos,
+    };
+  }
+
+  function parseActionDef(tokens, pos) {
+    pos++; // Skip "ACTION"
+    pos++;
+    if (pos >= tokens.length) throw new Error("Expected action name");
+    const name = tokens[pos].value;
+    pos++;
+    const parts = [];
+    while (pos < tokens.length && tokens[pos].value !== "\n") {
+      const propName = tokens[pos].value;
+      pos++;
+      if (pos >= tokens.length)
+        throw new Error("Expected method name in action definition");
+      const methodName = tokens[pos].value;
+      pos++;
+      if (pos >= tokens.length)
+        throw new Error("Expected parameters in action definition");
+      const prams = tokens[pos].value;
+      pos++;
+      parts.push({ propName, methodName, prams });
+    }
+    return { type: "ACTION_DEF", prams: { name, parts }, newPosition: pos };
+  }
+
+  function parsePropUse(tokens, pos) {
+    pos++;
+    if (pos >= tokens.length)
+      throw new Error("Expected property name after 'use'");
+    const name = tokens[pos].value;
+    pos++;
+    if (pos >= tokens.length || tokens[pos].value !== "(")
+      throw new Error("Expected '(' in property use");
+    pos++;
+    let depth = 1;
+    const pramsTokens = [];
+    while (pos < tokens.length && depth > 0) {
+      const token = tokens[pos];
+      if (token.value === "(") depth++;
+      else if (token.value === ")") depth--;
+      if (depth > 0) pramsTokens.push(token);
+      pos++;
+    }
+    if (depth !== 0) throw new Error("Unclosed parameters in property use");
+    const prams = pramsTokens.map((t) => t.value).join(" ");
+    pos++;
+    if (pos >= tokens.length || tokens[pos].value !== "as")
+      throw new Error("Expected 'as' in property use");
+    pos++;
+    if (pos >= tokens.length) throw new Error("Expected alias name after 'as'");
+    const alias = tokens[pos].value;
+    pos++;
+    return {
+      type: "PROP_USE",
+      prams: { name, prams, as: alias },
+      newPosition: pos,
+    };
+  }
+
+  function parseActionUse(tokens, pos) {
+    pos++;
+    if (pos >= tokens.length || tokens[pos].value !== "new")
+      throw new Error("Expected 'new' in action use");
+    pos++;
+    if (pos >= tokens.length || tokens[pos].value !== "action")
+      throw new Error("Expected 'action' in action use");
+    pos++;
+    if (pos >= tokens.length)
+      throw new Error("Expected stay time in action use");
+    const stayTime = tokens[pos].value;
+    pos++;
+    if (pos >= tokens.length)
+      throw new Error("Expected lerp time in action use");
+    const lerpTime = tokens[pos].value;
+    pos++;
+    return {
+      type: "ACTION_USE",
+      prams: { stayTime, lerpTime },
+      newPosition: pos,
+    };
+  }
+
+  function parseDefault(tokens, pos, type) {
+    const keyword = tokens[pos].value;
+    pos++;
+    if (pos >= tokens.length || tokens[pos].value !== "::")
+      throw new Error(`Expected '::' after ${keyword}`);
+    pos++;
+    const valueTokens = [];
+    while (pos < tokens.length && tokens[pos].value !== "\n") {
+      valueTokens.push(tokens[pos]);
+      pos++;
+    }
+    const value = valueTokens.map((t) => t.value).join(" ");
+    return { type, prams: { value }, newPosition: pos };
+  }
+
+  function parseComment(tokens, pos) {
+    pos++;
+    const commentTokens = [];
+    while (pos < tokens.length && tokens[pos].value !== "\n") {
+      commentTokens.push(tokens[pos]);
+      pos++;
+    }
+    const value = commentTokens.map((t) => t.value).join(" ");
+    return { type: "COMMENT", value, newPosition: pos };
+  }
+
+  // --- AST Processing ---
+  function processCodeList(codeList) {
+    const result = [];
+    let currentCode = "";
+    for (const item of codeList) {
+      if (item.STR) {
+        currentCode += item.STR + "\n";
+      } else if (item["SUB-HEADER"]) {
+        if (currentCode.trim()) {
+          result.push({
+            TYPE: "STATEMENTS",
+            VALUE: parseStatements(currentCode),
+          });
+          currentCode = "";
+        }
+        const subheader = item["SUB-HEADER"][0];
+        subheader.CODE = processCodeList(subheader.CODE);
+        result.push({ "SUB-HEADER": [subheader] });
+      }
+    }
+    if (currentCode.trim()) {
+      result.push({ TYPE: "STATEMENTS", VALUE: parseStatements(currentCode) });
+    }
+    return result;
+  }
+
+  function parse(code) {
+    const topLevelItems = parseTopLevel(code);
+    return topLevelItems.map((item) => {
+      if (item.TYPE === "CODE") {
+        return { TYPE: "STATEMENTS", VALUE: parseStatements(item.VALUE) };
+      } else if (item.TYPE === "HEADER") {
+        item.VALUE.CODE = processCodeList(item.VALUE.CODE);
+        return item;
+      }
+    });
+  }
+
+  // --- Traversal Functions ---
   function traverseIn(ast, callback) {
-    function traverse(node, depth = 0) {
+    function traverse(node, depth = RC) {
       if (Array.isArray(node)) {
         node.forEach((item) => traverse(item, depth));
-      } else if (node.USED) {
-        callback(node, true, depth);
-        node.CODE.forEach((child) => {
+      } else if (node.TYPE === "HEADER") {
+        callback(node.VALUE, true, depth);
+        node.VALUE.CODE.forEach((child) => {
           if (child["SUB-HEADER"]) {
             traverse(child["SUB-HEADER"], depth + 1);
           }
@@ -213,20 +462,20 @@ const OAS_PARSER = function () {
     function traverse(node, depth = 0) {
       if (Array.isArray(node)) {
         node.forEach((item) => traverse(item, depth));
-      } else if (node.USED) {
-        node.CODE.forEach((child) => {
+      } else if (node.TYPE === "HEADER") {
+        node.VALUE.CODE.forEach((child) => {
           if (child["SUB-HEADER"]) {
             traverse(child["SUB-HEADER"], depth + 1);
           }
         });
-        callback(node, false, depth);
+        callback(node.VALUE, false, depth);
       }
     }
     traverse(ast);
   }
 
   return {
-    parse: parseMainHeaders,
+    parse,
     traverseIn,
     traverseOut,
   };
@@ -234,15 +483,17 @@ const OAS_PARSER = function () {
 
 let OAS_PARSER_INS = OAS_PARSER();
 
-// Test with corrected input
+console.log(JSON.stringify(OAS_PARSER_INS.parse(`@IMPORT abc`), null, 2));
 console.log(
   JSON.stringify(
-    OAS_PARSER_INS.parse(`! --- PROP ABC :: comment ---
-code stuff
-:: SUB HEADER :: comment
-    code stuff
+    OAS_PARSER_INS.parse(`
+! --- PROP ABC :: comment ---
+def PROP MyProp { console.log("hi"); }
+:: SUB HEADER :: sub comment
+use MyProp(params) as Alias
 :: END
-!---END---`),
+!---END---
+`),
     null,
     2
   )
