@@ -317,68 +317,6 @@ let tokenizer = create_Tokenizer();
 
 let OAS_TOKobj = {
   hardcoded: [
-    "A",
-    "B",
-    "C",
-    "D",
-    "E",
-    "F",
-    "G",
-    "H",
-    "I",
-    "J",
-    "K",
-    "L",
-    "M",
-    "N",
-    "O",
-    "P",
-    "Q",
-    "R",
-    "S",
-    "T",
-    "U",
-    "V",
-    "W",
-    "X",
-    "Y",
-    "Z",
-    "a",
-    "b",
-    "c",
-    "d",
-    "e",
-    "f",
-    "g",
-    "h",
-    "i",
-    "j",
-    "k",
-    "l",
-    "m",
-    "n",
-    "o",
-    "p",
-    "q",
-    "r",
-    "s",
-    "t",
-    "u",
-    "v",
-    "w",
-    "x",
-    "y",
-    "z",
-    "0",
-    "1",
-    "2",
-    "3",
-    "4",
-    "5",
-    "6",
-    "7",
-    "8",
-    "9",
     { value: "\n", type: "newline" },
     "!",
     "@",
@@ -436,13 +374,14 @@ let OAS_TOKobj = {
     "PRAMS",
   ],
   rules: [
-    { fn: whitespaceRule, priority: 1000 },
+    { fn: whitespaceRule, priority: 1100 },
     { fn: commentRule, priority: 1100 },
     { fn: stringRule, priority: 1100 },
-    { fn: identifierRule, priority: 500 },
-    { fn: numberRule, priority: 500 },
+    { fn: identifierRule, priority: 1100 },
+    { fn: numberRule, priority: 1100 },
   ],
 };
+
 function cleanTheTokens(tokens) {
   let cleanedTokens = [];
   let currentValue = "";
@@ -473,7 +412,7 @@ function cleanTheTokens(tokens) {
       cleanedTokens.push(token);
     } else if (
       token.value.length === 1 &&
-      /[a-zA-Z0-9_"'`]/.test(token.value) // this should not be slow
+      /[a-zA-Z0-9_"'`]/.test(token.value)
     ) {
       currentValue += token.value;
     } else {
@@ -490,7 +429,7 @@ function cleanTheTokens(tokens) {
 
   if (currentValue !== "") {
     cleanedTokens.push({
-      type: determineType(currentValue),
+      type: determineType(tokens[tokens.length - 1]),
       value: currentValue,
     });
   }
@@ -500,6 +439,6 @@ function cleanTheTokens(tokens) {
 
 function defaultTokenizer(code) {
   let tokens = cleanTheTokens(tokenizer.tokenize(code, OAS_TOKobj).tokens);
-  console.log("TOKENS", JSON.stringify(tokens, null, 2));
+  // console.log("TOKENS", JSON.stringify(tokens, null, 2));
   return tokens;
 }
