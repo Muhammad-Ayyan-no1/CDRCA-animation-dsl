@@ -6,24 +6,24 @@ In 2025 the easiest way to do 2.5D scenes animations is manuall frame by frame d
 
 A domain-specific language designed to make cartoon creation accessible through high-level scripting while maintaining professional-grade output capabilities.
 
-## 🎬 What is CDRCA?
+## What is CDRCA?
 
 CDRCA is a domain-specific language (DSL) that translates simple, time-based animation commands into 3D frames. It allows teams to create sophisticated animations using intuitive syntax that automatically handles complex 3D transformations and rendering.
 
 ### Key Features
 
-- **🎨 Hand-drawn Style Rendering** - Renders 3D geometry as cartoon-style visuals via THREE.js or external renderers
-- **⏱️ Time-based Animation System** - Write animations using timing commands like "do that action after this seconds"
-- **🔧 Modular PROP System** - Define reusable objects, behaviors, and actions
-- **🌊 Advanced Simulations** - Planned physics, fluid dynamics, and particle systems with local hosting
-- **📱 Multi-platform** - Web-based for basic scenes, Node.js backend for full features
-- **🔄 Export Flexibility** - Export to Blender or other 3D software as frame-by-frame object lists
+- **Hand-drawn Style Rendering** - Renders 3D geometry as cartoon-style visuals via THREE.js or external renderers
+- **Time-based Animation System** - Write animations using timing commands like "do that action after this seconds"
+- **Modular PROP System** - Define reusable objects, behaviors, and actions
+- **Advanced Simulations** - Planned physics, fluid dynamics, and particle systems with local hosting
+- **Multi-platform** - Web-based for basic scenes, Node.js backend for full features
+- **Export Flexibility** - Export to Blender or other 3D software as frame-by-frame object lists
 
-## 🏗️ How It Works
+## How It Works
 
 CDRCA files (.cdrca) are parsed and translated to JavaScript, then rendered/tracked by the system at Renderer.js. The high-level code you write gets converted into 3D frames with proper morphing and interpolation between keyframes.
 
-## 📚 DSL Syntax Overview
+## DSL Syntax Overview
 
 ### Headers and Organization
 
@@ -98,7 +98,7 @@ use MyProp(params) as Alias
 !---END---
 ```
 
-## 🎯 Team Workflow
+## Team Workflow
 
 ### Non-Technical Team (Scene Creators)
 
@@ -114,7 +114,7 @@ use MyProp(params) as Alias
 
 This separation allows non-technical team members to create scenes while a small technical team handles the underlying system architecture.
 
-## 🔧 Rendering Options
+## Rendering Options
 
 ### Web-Based (Basic)
 
@@ -129,14 +129,14 @@ This separation allows non-technical team members to create scenes while a small
 - High-quality rendering pipeline
 - Export capabilities to external formats
 
-## 📦 Output Formats
+## Output Formats
 
 - **THREE.js Integration** - Direct web rendering
 - **Blender Import** - As frame-by-frame object lists over time
 - **External Renderers** - Compatible with various 3D software
 - **Frame Sequences** - Morphed 3D frames for animation
 
-## 🤝 Open Source
+## Open Source
 
 CDRCA is fully open-sourced under the IOSL license. See LICENSE.md for complete licensing details.
 
