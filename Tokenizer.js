@@ -1,9 +1,3 @@
-// this tokenizer is from my GAL compiler project https://github.com/Muhammad-Ayyan-no1/GAL-programming-language-v2 index.js at very top
-// it might be an overkill but this is better than a greedy tokenizer
-// it uses a trie to match hardcoded tokens and rules to match dynamic tokens
-// it also caches the token objects to avoid rebuilding them every time
-// so just use it   dont rewrite it  dont waste time on it
-
 // Define the Utilities module
 function createUtilities(logs) {
   return {
@@ -87,6 +81,101 @@ const GlobalCache = (function () {
   };
 })();
 
+// Rule functions for dynamic token matching
+function whitespaceRule(str, index) {
+  const char = str[index];
+  if (char !== " " && char !== "\t" && char !== "\r") return null;
+  let len = 0;
+  while (
+    index + len < str.length &&
+    (str[index + len] === " " ||
+      str[index + len] === "\t" ||
+      str[index + len] === "\r")
+  ) {
+    len++;
+  }
+  return { skip: true, length: len };
+}
+
+function commentRule(str, index) {
+  if (str.substr(index, 2) !== "//") return null;
+  let len = 2;
+  while (index + len < str.length && str[index + len] !== "\n") {
+    len++;
+  }
+  return { skip: true, length: len };
+}
+
+function stringRule(str, index) {
+  const quote = str[index];
+  if (quote !== '"' && quote !== "'") return null;
+  let len = 1;
+  let value = quote;
+  while (index + len < str.length) {
+    const char = str[index + len];
+    if (char === quote) {
+      value += char;
+      len++;
+      break;
+    }
+    if (char === "\\" && index + len + 1 < str.length) {
+      value += char + str[index + len + 1];
+      len += 2;
+    } else {
+      value += char;
+      len++;
+    }
+  }
+  if (len > 1 && str[index + len - 1] === quote) {
+    return { type: "string", value, length: len };
+  }
+  return null; // Unclosed string
+}
+
+function identifierRule(str, index) {
+  const char = str[index];
+  if (
+    !(
+      (char >= "A" && char <= "Z") ||
+      (char >= "a" && char <= "z") ||
+      char === "_"
+    )
+  )
+    return null;
+  let len = 1;
+  while (
+    index + len < str.length &&
+    ((str[index + len] >= "A" && str[index + len] <= "Z") ||
+      (str[index + len] >= "a" && str[index + len] <= "z") ||
+      (str[index + len] >= "0" && str[index + len] <= "9") ||
+      str[index + len] === "_")
+  ) {
+    len++;
+  }
+  const value = str.substr(index, len);
+  return { type: "identifier", value, length: len };
+}
+
+function numberRule(str, index) {
+  const char = str[index];
+  if (!(char >= "0" && char <= "9")) return null;
+  let len = 0;
+  let hasDot = false;
+  while (
+    index + len < str.length &&
+    ((str[index + len] >= "0" && str[index + len] <= "9") ||
+      str[index + len] === ".")
+  ) {
+    if (str[index + len] === ".") {
+      if (hasDot) return null; // More than one dot is invalid
+      hasDot = true;
+    }
+    len++;
+  }
+  const value = str.substr(index, len);
+  return { type: "number", value, length: len };
+}
+
 var create_Tokenizer = function () {
   Utilities.log("Creating tokenizer", "info");
 
@@ -147,30 +236,28 @@ var create_Tokenizer = function () {
         "verbose"
       );
 
-      let proposed = null;
-      let proposedLen = 0;
-      let proposedType = null;
-      let proposedPri = -Infinity;
+      let bestMatch = null;
+      let bestPri = -Infinity;
 
-      const match = Utilities.matchFromTrie(Cache.trie, str, STRindex);
-      if (match) {
-        proposed = match.value;
-        proposedLen = match.value.length;
-        proposedType = match.type;
-        proposedPri = HARDCODED_PRIORITY;
-        Utilities.log(
-          `Hardcoded match found: "${proposed}" (${proposedType})`,
-          "verbose"
-        );
+      // Check trie match
+      const trieMatch = Utilities.matchFromTrie(Cache.trie, str, STRindex);
+      if (trieMatch) {
+        const match = {
+          type: trieMatch.type,
+          value: trieMatch.value,
+          length: trieMatch.value.length,
+          priority: HARDCODED_PRIORITY,
+        };
+        if (match.priority > bestPri) {
+          bestMatch = match;
+          bestPri = match.priority;
+        }
       }
 
+      // Check rules
       for (let rule of Cache.rules) {
-        Utilities.log(
-          `Checking rule with priority ${rule.priority || 0}`,
-          "verbose"
-        );
         const result = rule.fn(str, STRindex);
-        if (result && result.length > 0) {
+        if (result) {
           let pri = rule.priority || 0;
           if (tokensOBJ.easeFN) {
             pri = tokensOBJ.easeFN(
@@ -180,32 +267,28 @@ var create_Tokenizer = function () {
               result.length,
               pri
             );
-            Utilities.log(
-              `Rule priority adjusted by easeFN: ${pri}`,
-              "verbose"
-            );
           }
-          if (pri > proposedPri) {
-            proposed = str.substr(STRindex, result.length);
-            proposedLen = result.length;
-            proposedType = result.type || "token";
-            proposedPri = pri;
-            Utilities.log(
-              `New best rule match: "${proposed}" (${proposedType}, pri: ${pri})`,
-              "verbose"
-            );
+          if (pri > bestPri) {
+            bestMatch = { ...result, priority: pri };
+            bestPri = pri;
           }
         }
       }
 
-      if (proposed) {
-        const token = { type: proposedType, value: proposed };
-        tokens.push(token);
-        Utilities.log(`Token created: ${JSON.stringify(token)}`, "info");
-        STRindex += proposedLen;
-        continue;
+      if (bestMatch) {
+        if (bestMatch.skip) {
+          STRindex += bestMatch.length;
+          continue;
+        } else {
+          const token = { type: bestMatch.type, value: bestMatch.value };
+          tokens.push(token);
+          Utilities.log(`Token created: ${JSON.stringify(token)}`, "info");
+          STRindex += bestMatch.length;
+          continue;
+        }
       }
 
+      // If no match, treat as unknown
       let chunk = str[STRindex];
       const unknownToken = { type: "unknown", value: chunk };
       tokens.push(unknownToken);
@@ -229,64 +312,9 @@ var create_Tokenizer = function () {
 
   return { tokenize };
 };
-// everything uses this tokenizer  because it caches stuff  its far better to be use
+
 let tokenizer = create_Tokenizer();
 
-// again this fn is from my GAL compiler project https://github.com/Muhammad-Ayyan-no1/GAL-programming-language-v2 index.js at midish maybe
-function cleanTheTokens(tokens) {
-  let cleanedTokens = [];
-  let currentValue = "";
-
-  function determineType(value) {
-    if (/^\d+$/.test(value)) return "number";
-    return "identifier";
-  }
-
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
-    if (token.value === " ") {
-      if (currentValue !== "") {
-        cleanedTokens.push({
-          type: determineType(currentValue),
-          value: currentValue,
-        });
-        currentValue = "";
-      }
-      continue;
-    } else if (token.value.length > 1) {
-      if (currentValue !== "") {
-        cleanedTokens.push({
-          type: determineType(currentValue),
-          value: currentValue,
-        });
-        currentValue = "";
-      }
-      cleanedTokens.push(token);
-    } else if (token.value.length === 1 && /[a-zA-Z0-9_]/.test(token.value)) {
-      currentValue += token.value;
-    } else {
-      if (currentValue !== "") {
-        cleanedTokens.push({
-          type: determineType(currentValue),
-          value: currentValue,
-        });
-        currentValue = "";
-      }
-      cleanedTokens.push(token);
-    }
-  }
-
-  if (currentValue !== "") {
-    cleanedTokens.push({
-      type: determineType(currentValue),
-      value: currentValue,
-    });
-  }
-
-  return cleanedTokens;
-}
-
-// --- Tokenizer Integration ---
 let OAS_TOKobj = {
   hardcoded: [
     "A",
@@ -351,10 +379,7 @@ let OAS_TOKobj = {
     "7",
     "8",
     "9",
-    " ",
-    "\n",
-    "\t",
-    "\r",
+    { value: "\n", type: "newline" },
     "!",
     "@",
     "#",
@@ -410,9 +435,71 @@ let OAS_TOKobj = {
     "CODE",
     "PRAMS",
   ],
+  rules: [
+    { fn: whitespaceRule, priority: 1000 },
+    { fn: commentRule, priority: 1100 },
+    { fn: stringRule, priority: 1100 },
+    { fn: identifierRule, priority: 500 },
+    { fn: numberRule, priority: 500 },
+  ],
 };
+function cleanTheTokens(tokens) {
+  let cleanedTokens = [];
+  let currentValue = "";
+
+  function determineType(token) {
+    return token.type;
+  }
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token.value === " ") {
+      if (currentValue !== "") {
+        cleanedTokens.push({
+          type: determineType(token),
+          value: currentValue,
+        });
+        currentValue = "";
+      }
+      continue;
+    } else if (token.value.length > 1) {
+      if (currentValue !== "") {
+        cleanedTokens.push({
+          type: determineType(token),
+          value: currentValue,
+        });
+        currentValue = "";
+      }
+      cleanedTokens.push(token);
+    } else if (
+      token.value.length === 1 &&
+      /[a-zA-Z0-9_"'`]/.test(token.value) // this should not be slow
+    ) {
+      currentValue += token.value;
+    } else {
+      if (currentValue !== "") {
+        cleanedTokens.push({
+          type: determineType(token),
+          value: currentValue,
+        });
+        currentValue = "";
+      }
+      cleanedTokens.push(token);
+    }
+  }
+
+  if (currentValue !== "") {
+    cleanedTokens.push({
+      type: determineType(currentValue),
+      value: currentValue,
+    });
+  }
+
+  return cleanedTokens;
+}
+
 function defaultTokenizer(code) {
-  let r = cleanTheTokens(tokenizer.tokenize(code, OAS_TOKobj).tokens);
-  console.log("TOKENS", JSON.stringify(r, null, 2));
-  return r;
+  let tokens = cleanTheTokens(tokenizer.tokenize(code, OAS_TOKobj).tokens);
+  console.log("TOKENS", JSON.stringify(tokens, null, 2));
+  return tokens;
 }

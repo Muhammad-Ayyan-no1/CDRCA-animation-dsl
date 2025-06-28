@@ -1,42 +1,31 @@
-// THE DSl parser  for making everything a .cdrca  file (node js only)
 /*
-NOTE: NOT worked on big compiler but on small solo project          (if anyone edits the parser update the previous NOTE)
-SYNTAX: bellow
---- header text stuff :: Some comment ---
-CODE based on that text
+ * DSL Parser for .cdrca Files (Node.js Only)
+ * NOTE: Originally designed by a solo compiler project dev.
+ *
+ *
+ * SYNTAX OVERVIEW:
+ * Headers: !--- HEADER_TYPE :: Comment --- ... !---END---
+ * Subheaders: :: SUB HEADER :: Comment ... :: END
+ *
+ * STATEMENTS:
+ * - Imports: @IMPORT FilePath  /  @AddImport FilePath
+ * - JS Blocks: JS { JavaScript code here }
+ * - Prop Definition: def PROP PROP_NAME [abstracts OTHER_PROP] { JS code }
+ * - Prop Use: use PROP_NAME(params) as ALIAS
+ * - Action Definition: def ACTION ACTION_NAME PROP_NAME METHOD_NAME PARAMS [ PROP_NAME METHOD_NAME PARAMS ... ]    [] part is optional
+ * - Action Use: add new actionName STAY_TIME LERP_TIME
+ * - Defaults: gredientMap :: value  /  BGcolor :: color
+ * - Comments: // Comment text
+ *
+ * EXAMPLE:
+ * !--- PROP ABC :: Define properties ---
+ * def PROP MyProp { console.log("hi"); }
+ * :: SUB HEADER :: Usage
+ * use MyProp(params) as Alias
+ * :: END
+ * !---END---
+ */
 
-CODE :
-// comment  js type stuff here
-JS {
-}  to embeed a js fn call using (()->{YOUR CODE from JS block})()
-
-for import header or any other header (NODE JS only)
-@IMPORT File Path       to hoist a file
-@AddImport File Path    to add a file at this position
-files are just copied and pasted at that position  like #include in cpp  but anywhere
-
-for props header
-define a prop by         def PROP PROP_NAME abstracts optionOtherPROP { code of the prop as a js code }
-use a prop by    use PROPNAME(prams) as NAME  
-
-for Defaults header
-to set default gredient      gredientMap :: [arr of vals] / num / num / formate (RGB)
-for BG color                 BGcolor :: color
-similar for stay end time
-
-for actions header
-define an action by         def ACTION ACTION_NAME PROP_NAME METHOD_NAME PRAMS / you can add more PROP_NAME and PRAMS and METHOD_NAME
-now use it by just saying           add new action STAY_TIME LERP_TIME
-
-for SCENE header
-to add a sub header just     :: SUB header   
-SUB hedaers include actions, default props
-
-
-example:
-nope,  i dont understand this syntax myself after writing the parser
-but it works so i dont care
-*/
 const OAS_PARSER = function () {
   // --- Header Parsing Functions ---
   function findNextHeaderStart(string, position) {
@@ -77,12 +66,18 @@ const OAS_PARSER = function () {
       const nextSubheader = string.indexOf("::", position);
       if (nextSubheader === -1) {
         if (position < string.length) {
-          contentList.push({ STR: string.slice(position).trim() });
+          const content = string.slice(position).trim();
+          if (content) {
+            contentList.push({ STR: content });
+          }
         }
         break;
       }
       if (position < nextSubheader) {
-        contentList.push({ STR: string.slice(position, nextSubheader).trim() });
+        const content = string.slice(position, nextSubheader).trim();
+        if (content) {
+          contentList.push({ STR: content });
+        }
       }
       const [subheaderNode, newPosition] = parseSubheader(
         string,
@@ -95,43 +90,91 @@ const OAS_PARSER = function () {
   }
 
   function parseSubheader(string, position) {
-    const nextColon = string.indexOf("::", position + 2);
-    if (nextColon === -1) {
+    // Find the end of the subheader declaration
+    let declarationEnd = position + 2;
+    let foundEnd = false;
+
+    // Look for the next :: that ends the declaration
+    while (declarationEnd < string.length - 1) {
+      if (
+        string[declarationEnd] === ":" &&
+        string[declarationEnd + 1] === ":"
+      ) {
+        foundEnd = true;
+        break;
+      }
+      declarationEnd++;
+    }
+
+    if (!foundEnd) {
       throw new Error(`Invalid subheader syntax at position ${position}`);
     }
-    const subheaderHeader = string.slice(position + 2, nextColon).trim();
-    const parts = subheaderHeader.split("::");
-    const usedTypes = parts[0].trim().split(/\s+/);
-    const comment = parts.length > 1 ? parts[1].trim() : "";
-    const subContentStart = nextColon + 2;
+
+    const subheaderHeader = string.slice(position + 2, declarationEnd).trim();
+
+    // Parse the subheader declaration
+    let usedTypes = [];
+    let comment = "";
+
+    if (subheaderHeader.includes("::")) {
+      // Format: "SUB HEADER :: comment"
+      const parts = subheaderHeader.split("::");
+      usedTypes = parts[0]
+        .trim()
+        .split(/\s+/)
+        .filter((part) => part.length > 0);
+      comment = parts.length > 1 ? parts.slice(1).join("::").trim() : "";
+    } else {
+      // Format: "SUB HEADER" (no comment)
+      usedTypes = subheaderHeader
+        .split(/\s+/)
+        .filter((part) => part.length > 0);
+    }
+
+    const subContentStart = declarationEnd + 2;
     let nesting = 1;
     let subPosition = subContentStart;
-    while (subPosition < string.length) {
-      const nextColon = string.indexOf("::", subPosition);
-      if (nextColon === -1) {
+
+    while (subPosition < string.length - 1) {
+      const nextDoubleColon = string.indexOf("::", subPosition);
+      if (nextDoubleColon === -1) {
         throw new Error(`Unclosed subheader at position ${position}`);
       }
-      const afterColon =
-        string.slice(nextColon + 2).match(/^\s*(\w+)/)?.[1] || "";
+
+      // Check what comes after the ::
+      let afterColon = "";
+      let checkPos = nextDoubleColon + 2;
+      while (checkPos < string.length && /\s/.test(string[checkPos])) {
+        checkPos++;
+      }
+      while (checkPos < string.length && /[A-Za-z]/.test(string[checkPos])) {
+        afterColon += string[checkPos];
+        checkPos++;
+      }
+
       if (afterColon === "END") {
         nesting -= 1;
         if (nesting === 0) {
-          const subContentEnd = nextColon;
+          const subContentEnd = nextDoubleColon;
           const subContentString = string.slice(subContentStart, subContentEnd);
           const parsedSubContent = parseContent(subContentString);
+
+          // Find the end of "END" keyword
+          let endPos = checkPos;
           return [
             {
               USED: usedTypes,
               COMMENT: comment,
               CODE: parsedSubContent,
             },
-            nextColon + string.slice(nextColon).indexOf("END") + 3,
+            endPos,
           ];
         }
-      } else {
+      } else if (usedTypes.length > 0) {
+        // This is the start of another nested subheader
         nesting += 1;
       }
-      subPosition = nextColon + 2;
+      subPosition = nextDoubleColon + 2;
     }
     throw new Error(`Unclosed subheader at position ${position}`);
   }
@@ -147,9 +190,25 @@ const OAS_PARSER = function () {
         if (codeBefore) {
           items.push({ TYPE: "CODE", VALUE: codeBefore });
         }
-        const parts = headerContent.trim().split("::");
-        const usedTypes = parts[0].trim().split(/\s+/);
-        const comment = parts.length > 1 ? parts[1].trim() : "";
+
+        // Parse header content
+        let usedTypes = [];
+        let comment = "";
+
+        if (headerContent.includes("::")) {
+          const parts = headerContent.split("::");
+          usedTypes = parts[0]
+            .trim()
+            .split(/\s+/)
+            .filter((part) => part.length > 0);
+          comment = parts.length > 1 ? parts.slice(1).join("::").trim() : "";
+        } else {
+          usedTypes = headerContent
+            .trim()
+            .split(/\s+/)
+            .filter((part) => part.length > 0);
+        }
+
         const seq = C.repeat(N);
         const endTag = "!" + seq + "END" + seq;
         const headerLineEnd =
@@ -185,7 +244,7 @@ const OAS_PARSER = function () {
     const statements = [];
     let pos = 0;
     while (pos < tokens.length) {
-      while (pos < tokens.length && tokens[pos].value === "\n") pos++;
+      while (pos < tokens.length && tokens[pos].type === "newline") pos++;
       if (pos >= tokens.length) break;
       const statement = parseStatement(tokens, pos);
       statements.push(statement);
@@ -225,7 +284,7 @@ const OAS_PARSER = function () {
     if (pos >= tokens.length) throw new Error(`${type} missing file path`);
     const path = tokens[pos].value;
     pos++;
-    while (pos < tokens.length && tokens[pos].value !== "\n") pos++;
+    while (pos < tokens.length && tokens[pos].type !== "newline") pos++;
     return { type, prams: { path }, newPosition: pos };
   }
 
@@ -259,11 +318,9 @@ const OAS_PARSER = function () {
   }
 
   function parsePropDef(tokens, pos) {
-    // pos++; // Skip "PROP"
-    // pos++;
-    pos += 2;
-    if (pos >= tokens.length)
-      throw new Error("Expected property name in PROPS defination");
+    pos++; // Skip "PROP"
+    if (pos >= tokens.length || tokens[pos].type !== "identifier")
+      throw new Error("Expected prop name after 'PROP'");
     const name = tokens[pos].value;
     pos++;
     let abstracts = false;
@@ -271,13 +328,13 @@ const OAS_PARSER = function () {
     if (pos < tokens.length && tokens[pos].value === "abstracts") {
       abstracts = true;
       pos++;
-      if (pos >= tokens.length)
+      if (pos >= tokens.length || tokens[pos].type !== "identifier")
         throw new Error("Expected other PROP name after 'abstracts'");
       optionOtherPROP = tokens[pos].value;
       pos++;
     }
     if (pos >= tokens.length || tokens[pos].value !== "{")
-      throw new Error("Expected '{' in property definition");
+      throw new Error("Expected '{' in prop definition");
     pos++;
     let depth = 1;
     const codeTokens = [];
@@ -288,7 +345,7 @@ const OAS_PARSER = function () {
       if (depth > 0) codeTokens.push(token);
       pos++;
     }
-    if (depth !== 0) throw new Error("Unclosed property definition");
+    if (depth !== 0) throw new Error("Unclosed prop definition");
     const code = codeTokens.map((t) => t.value).join(" ");
     return {
       type: "PROP_DEF",
@@ -299,21 +356,23 @@ const OAS_PARSER = function () {
 
   function parseActionDef(tokens, pos) {
     pos++; // Skip "ACTION"
-    pos++;
-    if (pos >= tokens.length) throw new Error("Expected action name");
+    if (pos >= tokens.length || tokens[pos].type !== "identifier")
+      throw new Error("Expected action name after 'ACTION'");
     const name = tokens[pos].value;
     pos++;
     const parts = [];
-    while (pos < tokens.length && tokens[pos].value !== "\n") {
+    while (pos < tokens.length && tokens[pos].type !== "newline") {
+      if (tokens[pos].type !== "identifier")
+        throw new Error("Expected prop name in action definition");
       const propName = tokens[pos].value;
       pos++;
-      if (pos >= tokens.length)
+      if (pos >= tokens.length || tokens[pos].type !== "identifier")
         throw new Error("Expected method name in action definition");
       const methodName = tokens[pos].value;
       pos++;
       if (pos >= tokens.length)
         throw new Error("Expected parameters in action definition");
-      const prams = tokens[pos].value;
+      const prams = tokens[pos].value; // Parameters can be any token
       pos++;
       parts.push({ propName, methodName, prams });
     }
@@ -322,12 +381,12 @@ const OAS_PARSER = function () {
 
   function parsePropUse(tokens, pos) {
     pos++;
-    if (pos >= tokens.length)
-      throw new Error("Expected property name after 'use'");
+    if (pos >= tokens.length || tokens[pos].type !== "identifier")
+      throw new Error("Expected prop name after 'use'");
     const name = tokens[pos].value;
     pos++;
     if (pos >= tokens.length || tokens[pos].value !== "(")
-      throw new Error("Expected '(' in property use");
+      throw new Error("Expected '(' in prop use");
     pos++;
     let depth = 1;
     const pramsTokens = [];
@@ -338,15 +397,19 @@ const OAS_PARSER = function () {
       if (depth > 0) pramsTokens.push(token);
       pos++;
     }
-    if (depth !== 0) throw new Error("Unclosed parameters in property use");
+    if (depth !== 0) throw new Error("Unclosed parameters in prop use");
     const prams = pramsTokens.map((t) => t.value).join(" ");
-    pos++;
-    if (pos >= tokens.length || tokens[pos].value !== "as")
-      throw new Error("Expected 'as' in property use");
-    pos++;
-    if (pos >= tokens.length) throw new Error("Expected alias name after 'as'");
-    const alias = tokens[pos].value;
-    pos++;
+
+    // Handle optional "as" clause
+    let alias = null;
+    if (pos < tokens.length && tokens[pos].value === "as") {
+      pos++;
+      if (pos >= tokens.length || tokens[pos].type !== "identifier")
+        throw new Error("Expected alias name after 'as'");
+      alias = tokens[pos].value;
+      pos++;
+    }
+
     return {
       type: "PROP_USE",
       prams: { name, prams, as: alias },
@@ -384,7 +447,7 @@ const OAS_PARSER = function () {
       throw new Error(`Expected '::' after ${keyword}`);
     pos++;
     const valueTokens = [];
-    while (pos < tokens.length && tokens[pos].value !== "\n") {
+    while (pos < tokens.length && tokens[pos].type !== "newline") {
       valueTokens.push(tokens[pos]);
       pos++;
     }
@@ -395,7 +458,7 @@ const OAS_PARSER = function () {
   function parseComment(tokens, pos) {
     pos++;
     const commentTokens = [];
-    while (pos < tokens.length && tokens[pos].value !== "\n") {
+    while (pos < tokens.length && tokens[pos].type !== "newline") {
       commentTokens.push(tokens[pos]);
       pos++;
     }
@@ -431,19 +494,22 @@ const OAS_PARSER = function () {
 
   function parse(code) {
     const topLevelItems = parseTopLevel(code);
-    return topLevelItems.map((item) => {
-      if (item.TYPE === "CODE") {
-        return { TYPE: "STATEMENTS", VALUE: parseStatements(item.VALUE) };
-      } else if (item.TYPE === "HEADER") {
-        item.VALUE.CODE = processCodeList(item.VALUE.CODE);
+    return topLevelItems
+      .map((item) => {
+        if (item.TYPE === "CODE") {
+          return { TYPE: "STATEMENTS", VALUE: parseStatements(item.VALUE) };
+        } else if (item.TYPE === "HEADER") {
+          item.VALUE.CODE = processCodeList(item.VALUE.CODE);
+          return item;
+        }
         return item;
-      }
-    });
+      })
+      .filter((item) => item !== undefined);
   }
 
   // --- Traversal Functions ---
   function traverseIn(ast, callback) {
-    function traverse(node, depth = RC) {
+    function traverse(node, depth = 0) {
       if (Array.isArray(node)) {
         node.forEach((item) => traverse(item, depth));
       } else if (node.TYPE === "HEADER") {
@@ -481,20 +547,31 @@ const OAS_PARSER = function () {
   };
 };
 
+// Initialize parser instance
 let OAS_PARSER_INS = OAS_PARSER();
 
+// Test cases
+console.log("=== Test 1: Simple Import ===");
 console.log(JSON.stringify(OAS_PARSER_INS.parse(`@IMPORT abc`), null, 2));
+
+console.log("\n=== Test 2: Header with Sub-header ===");
 console.log(
   JSON.stringify(
     OAS_PARSER_INS.parse(`
-! --- PROP ABC :: comment ---
+!--- PROP ABC :: comment ---
 def PROP MyProp { console.log("hi"); }
-:: SUB HEADER :: sub comment
+:: SUB HEADER ::
 use MyProp(params) as Alias
+add new action STAY_TIME LERP_TIME
 :: END
 !---END---
 `),
     null,
     2
   )
+);
+
+console.log("\n=== Test 3: Prop Use without 'as' ===");
+console.log(
+  JSON.stringify(OAS_PARSER_INS.parse(`use MyProp(params)`), null, 2)
 );
