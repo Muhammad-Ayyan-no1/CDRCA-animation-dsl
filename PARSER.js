@@ -254,6 +254,7 @@ const OAS_PARSER = function () {
   }
 
   function parseStatement(tokens, pos) {
+    // POS is inclusive like S1k1 S1k2 S2k1 S2k1 etc   here S = statment, k = keyword   the pos will always be at S1k1 or s2k2  inclusive for first token of statment (its helpful when writing parser)
     const token = tokens[pos];
     switch (token.value) {
       case "@IMPORT":
