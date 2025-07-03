@@ -1,0 +1,790 @@
+<!-- THIS CODE IS WRITTEN BY GROK EXCEPT THE LAST iframe event -->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Text Editor</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+      #container { flex: 1; width: 100%; height: 0; min-height: 0; position: relative; }
+      .toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: #fff; padding: 10px 20px; border-radius: 5px; display: none; z-index: 1001; }
+      #modal { display: none; }
+      #no-tabs-msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #aaa; display: none; }
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body class="bg-gray-900 text-white font-sans">
+    <div id="main-layout" class="flex h-screen w-screen">
+      <div id="sidebar" class="w-64 bg-gray-800 p-4 overflow-y-auto">
+        <button id="toggle-sidebar" class="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded mb-2 w-full">Hide Sidebar</button>
+        <button id="new-file" class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded mb-2 w-full">New File</button>
+        <button id="new-folder" class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded mb-2 w-full">New Folder</button>
+        <button id="commit" class="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded mb-2 w-full">Commit</button>
+        <button id="view-commits" class="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded mb-2 w-full">View Commits</button>
+        <button id="toggle-versioning" class="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded mb-2 w-full">Toggle Versioning</button>
+        <button id="export-fs" class="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded mb-2 w-full">Export FS</button>
+        <input type="file" id="import-fs" class="hidden" accept=".json">
+        <button id="import-fs-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded mb-2 w-full">Import FS</button>
+        <select id="theme-select" class="bg-gray-700 text-white p-2 rounded mb-2 w-full">
+          <option value="vs-dark">VS Dark</option>
+          <option value="vs">VS Light</option>
+          <option value="hc-black">High Contrast</option>
+        </select>
+        <div id="file-tree"></div>
+      </div>
+      <div id="editor-area" class="flex-1 flex flex-col h-full">
+        <div id="tabs" class="flex bg-gray-700 text-white h-8 items-center overflow-x-auto"></div>
+        <div id="container" class="flex-1">
+          <div id="regular-editor" style="height: 100%;"></div>
+          <div id="diff-editor" style="height: 100%; display: none;"></div>
+          <div id="no-tabs-msg">Open a file to get started!</div>
+        </div>
+      </div>
+    </div>
+    <div id="context-menu" class="absolute bg-gray-700 border border-gray-600 rounded shadow-lg hidden z-10">
+      <div class="menu-item px-4 py-2 hover:bg-gray-600 cursor-pointer" data-action="rename">Rename</div>
+      <div class="menu-item px-4 py-2 hover:bg-gray-600 cursor-pointer" data-action="delete">Delete</div>
+      <div class="menu-item px-4 py-2 hover:bg-gray-600 cursor-pointer" data-action="copy">Copy</div>
+      <div class="menu-item px-4 py-2 hover:bg-gray-600 cursor-pointer" data-action="move">Move</div>
+      <div class="menu-item px-4 py-2 hover:bg-gray-600 cursor-pointer" data-action="diff">Diff with...</div>
+    </div>
+    <div id="modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-gray-800 p-4 rounded shadow-lg w-96">
+        <h2 id="modal-title" class="text-xl font-bold mb-2"></h2>
+        <p id="modal-message" class="mb-4"></p>
+        <input id="modal-input" type="text" class="bg-gray-700 text-white p-2 rounded w-full mb-4 hidden">
+        <select id="modal-select" class="bg-gray-700 text-white p For example, if I have "src/a/file.js" and "src/b/file.js" show "a/file.js" and "b/file.js" hidden w-full mb-4 hidden"></select>
+        <div id="modal-buttons" class="flex justify-end">
+          <button id="modal-cancel" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded mr-2">Cancel</button>
+          <button id="modal-confirm" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Confirm</button>
+        </div>
+      </div>
+    </div>
+    <div id="toast" class="toast"></div>
+    <script src="./monaco/package/dev/vs/loader.js"></script>
+    <script>
+      let fileSystem = { "src": { "main.js": "// main.js\nconsole.log('Hello');", "utils": { "helper.js": "// helper.js\nfunction help() {}" } }, "README.md": "# Project README" };
+      let commits = [];
+      let openTabs = [];
+      let activeTab = null;
+      let fileContents = {};
+      let models = {};
+      let selectedItem = null;
+      let ignoredPatterns = [];
+      let isVersioningEnabled = true;
+      let macroRecording = false;
+      let macroActions = [];
+
+      function renderSidebar(fs, parent, path = "") {
+        if (!document.getElementById('sidebar').classList.contains('hidden')) {
+          parent.innerHTML = '';
+          const latestCommit = commits.length > 0 && isVersioningEnabled ? commits[commits.length - 1].fileSystem : {};
+          const differences = getDifferences(fileSystem, latestCommit);
+          for (const key in fs) {
+            if (shouldIgnore(path ? path + "/" + key : key)) continue;
+            const fullPath = path ? path + "/" + key : key;
+            if (typeof fs[key] === "string") {
+              const fileDiv = document.createElement("div");
+              fileDiv.className = "file pl-4 py-1 hover:bg-gray-700 cursor-pointer flex items-center";
+              fileDiv.dataset.path = fullPath;
+              fileDiv.innerHTML = `<span class="mr-2">📄</span>${
+                differences.added.includes(fullPath) ? `${key} <span>(added)</span>` :
+                differences.modified.includes(fullPath) ? `${key} <span>(modified)</span>` : key
+              }`;
+              fileDiv.onclick = () => openFile(fullPath);
+              fileDiv.oncontextmenu = (e) => showContextMenu(e, fullPath, 'file');
+              parent.appendChild(fileDiv);
+            } else {
+              const folderDiv = document.createElement("div");
+              folderDiv.className = "folder py-1 cursor-pointer";
+              const toggleSpan = document.createElement("span");
+              toggleSpan.innerHTML = "▶ ";
+              toggleSpan.className = "mr-2";
+              const nameSpan = document.createElement("span");
+              nameSpan.innerHTML = `<span class="mr-2">📁</span>${key}`;
+              folderDiv.appendChild(toggleSpan);
+              folderDiv.appendChild(nameSpan);
+              folderDiv.dataset.path = fullPath;
+              const childrenDiv = document.createElement("div");
+              childrenDiv.className = "ml-4 hidden";
+              renderSidebar(fs[key], childrenDiv, fullPath);
+              folderDiv.appendChild(childrenDiv);
+              toggleSpan.onclick = (e) => {
+                e.stopPropagation();
+                childrenDiv.classList.toggle("hidden");
+                toggleSpan.innerHTML = childrenDiv.classList.contains("hidden") ? "▶ " : "▼ ";
+              };
+              folderDiv.oncontextmenu = (e) => showContextMenu(e, fullPath, 'folder');
+              parent.appendChild(folderDiv);
+            }
+          }
+        }
+      }
+
+      function openFile(path) {
+        if (!models[path]) {
+          models[path] = monaco.editor.createModel(fileContents[path] || getFileContentByPath(path, fileSystem), 'javascript', monaco.Uri.parse('file://' + path));
+          models[path].onDidChangeContent(() => {
+            fileContents[path] = models[path].getValue();
+            setFileContentByPath(path, models[path].getValue(), fileSystem);
+            renderSidebar(fileSystem, sidebar);
+          });
+        }
+        if (!openTabs.some(tab => tab.type === 'file' && tab.path === path)) {
+          openTabs.push({ type: 'file', path });
+          showToast(`Opened ${path.split('/').pop()}`);
+        }
+        setActiveTab({ type: 'file', path });
+      }
+
+      function setActiveTab(tab) {
+        activeTab = tab;
+        renderTabs();
+        document.getElementById('no-tabs-msg').style.display = openTabs.length ? 'none' : 'block';
+        if (tab.type === 'file') {
+          document.getElementById('regular-editor').style.display = 'block';
+          document.getElementById('diff-editor').style.display = 'none';
+          window.editor.setModel(models[tab.path]);
+        } else if (tab.type === 'diff') {
+          document.getElementById('regular-editor').style.display = 'none';
+          document.getElementById('diff-editor').style.display = 'block';
+          window.diffEditor.setModel({ original: models[tab.leftPath], modified: models[tab.rightPath] });
+        }
+      }
+
+      function renderTabs() {
+        const tabsDiv = document.getElementById("tabs");
+        tabsDiv.innerHTML = "";
+        const allFilePaths = new Set();
+        openTabs.forEach(tab => {
+          if (tab.type === 'file') allFilePaths.add(tab.path);
+          else if (tab.type === 'diff') {
+            allFilePaths.add(tab.leftPath);
+            allFilePaths.add(tab.rightPath);
+          }
+        });
+        const uniqueDisplayNames = getUniqueDisplayNames([...allFilePaths]);
+        openTabs.forEach((tab, index) => {
+          const tabDiv = document.createElement("div");
+          tabDiv.className = `tab px-4 h-full flex items-center cursor-pointer border-r border-gray-600 ${tab === activeTab ? "bg-gray-800 font-bold" : "bg-gray-700"}`;
+          if (tab.type === 'file') {
+            tabDiv.textContent = uniqueDisplayNames[tab.path];
+            tabDiv.title = tab.path;
+          } else if (tab.type === 'diff') {
+            tabDiv.textContent = `Diff: ${uniqueDisplayNames[tab.leftPath]} vs ${uniqueDisplayNames[tab.rightPath]}`;
+            tabDiv.title = `${tab.leftPath} vs ${tab.rightPath}`;
+          }
+          tabDiv.onclick = () => setActiveTab(tab);
+          const closeBtn = document.createElement("span");
+          closeBtn.textContent = " ×";
+          closeBtn.className = "ml-2 cursor-pointer";
+          closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            closeTab(index);
+          };
+          tabDiv.appendChild(closeBtn);
+          tabsDiv.appendChild(tabDiv);
+        });
+      }
+
+      function closeTab(index) {
+        const tab = openTabs[index];
+        openTabs.splice(index, 1);
+        if (activeTab === tab) {
+          activeTab = openTabs.length ? openTabs[openTabs.length - 1] : null;
+          if (activeTab) setActiveTab(activeTab);
+          else {
+            document.getElementById('regular-editor').style.display = 'none';
+            document.getElementById('diff-editor').style.display = 'none';
+            document.getElementById('no-tabs-msg').style.display = 'block';
+          }
+        }
+        renderTabs();
+        showToast(`Closed tab`);
+      }
+
+      function getFileContentByPath(path, fs) {
+        const parts = path.split("/");
+        let curr = fs;
+        for (let part of parts) curr = curr[part];
+        return curr;
+      }
+
+      function setFileContentByPath(path, content, fs) {
+        const parts = path.split('/');
+        let current = fs;
+        for (let i = 0; i < parts.length - 1; i++) {
+          if (!current[parts[i]]) current[parts[i]] = {};
+          current = current[parts[i]];
+        }
+        current[parts[parts.length - 1]] = content;
+      }
+
+      function deepCopy(obj) {
+        return JSON.parse(JSON.stringify(obj));
+      }
+
+      function getParentPath(path) {
+        const parts = path.split('/');
+        if (parts.length === 1) return '';
+        return parts.slice(0, -1).join('/');
+      }
+
+      function resolvePath(base, relative) {
+        if (relative.startsWith('/')) return relative.substring(1);
+        const baseParts = base ? base.split('/') : [];
+        const relParts = relative.split('/');
+        const current = [...baseParts];
+        for (const part of relParts) {
+          if (part === '..') {
+            if (current.length > 0) current.pop();
+          } else if (part !== '.' && part !== '') {
+            current.push(part);
+          }
+        }
+        return current.join('/');
+      }
+
+      function showContextMenu(event, path, type) {
+        event.preventDefault();
+        const menu = document.getElementById("context-menu");
+        menu.style.left = event.clientX + 'px';
+        menu.style.top = event.clientY + 'px';
+        menu.style.display = 'block';
+        menu.dataset.path = path;
+        menu.dataset.type = type;
+      }
+
+      function handleAction(action, path, type) {
+        if (action === 'rename') {
+          showModal('Rename', `Enter new name for ${type} ${path.split('/').pop()}:`, true, 'Rename', (newName) => {
+            if (newName) renameItem(path, newName);
+          });
+        } else if (action === 'delete') {
+          showModal('Confirm Delete', `Are you sure you want to delete ${type} ${path}?`, false, 'Delete', () => {
+            deleteItem(path);
+          });
+        } else if (action === 'copy') {
+          showModal('Copy', 'Enter destination path (start with / for absolute, else relative to parent):', true, 'Copy', (userInput) => {
+            if (userInput) {
+              const parent = getParentPath(path);
+              const dest = resolvePath(parent, userInput);
+              copyItem(path, dest);
+            }
+          });
+        } else if (action === 'move') {
+          showModal('Move', 'Enter destination path (start with / for absolute, else relative to parent):', true, 'Move', (userInput) => {
+            if (userInput) {
+              const parent = getParentPath(path);
+              const dest = resolvePath(parent, userInput);
+              moveItem(path, dest);
+            }
+          });
+        } else if (action === 'diff') {
+          showModal('Diff with...', 'Enter path of the other file or select commit:', true, 'Diff', (otherPath) => {
+            if (otherPath && models[otherPath]) {
+              openDiff(path, otherPath);
+            } else {
+              showToast('Invalid file path', true);
+            }
+          });
+        }
+      }
+
+      function deleteItem(path) {
+        const parts = path.split('/');
+        const itemName = parts.pop();
+        let current = fileSystem;
+        for (let part of parts) current = current[part];
+        if (current[itemName]) {
+          delete current[itemName];
+          openTabs = openTabs.filter(tab => tab.type !== 'file' || tab.path !== path);
+          if (activeTab && activeTab.type === 'file' && activeTab.path === path) {
+            activeTab = openTabs.length ? openTabs[openTabs.length - 1] : null;
+            if (activeTab) setActiveTab(activeTab);
+          }
+          renderSidebar(fileSystem, sidebar);
+          renderTabs();
+          showToast(`Deleted ${path}`);
+        }
+      }
+
+      function renameItem(path, newName) {
+        const parts = path.split('/');
+        const oldName = parts.pop();
+        const parentPath = parts.join('/');
+        let current = fileSystem;
+        for (let part of parts) current = current[part];
+        const newPath = parentPath ? parentPath + '/' + newName : newName;
+        if (current.hasOwnProperty(newName)) {
+          showToast(`Cannot rename: ${newPath} already exists`, true);
+          return;
+        }
+        if (current[oldName]) {
+          current[newName] = current[oldName];
+          delete current[oldName];
+          if (typeof current[newName] === 'string') {
+            const tab = openTabs.find(tab => tab.type === 'file' && tab.path === path);
+            if (tab) {
+              tab.path = newPath;
+              if (activeTab === tab) activeTab.path = newPath;
+              models[newPath] = models[path];
+              delete models[path];
+              fileContents[newPath] = fileContents[path];
+              delete fileContents[path];
+            }
+          } else {
+            const oldPrefix = path + '/';
+            const newPrefix = newPath + '/';
+            openTabs.forEach(tab => {
+              if (tab.type === 'file' && tab.path.startsWith(oldPrefix)) {
+                tab.path = newPrefix + tab.path.substring(oldPrefix.length);
+              }
+            });
+            const newModels = {};
+            for (let p in models) {
+              if (p.startsWith(oldPrefix)) newModels[newPrefix + p.substring(oldPrefix.length)] = models[p];
+              else newModels[p] = models[p];
+            }
+            models = newModels;
+            const newFileContents = {};
+            for (let p in fileContents) {
+              if (p.startsWith(oldPrefix)) newFileContents[newPrefix + p.substring(oldPrefix.length)] = fileContents[p];
+              else newFileContents[p] = fileContents[p];
+            }
+            fileContents = newFileContents;
+            if (activeTab && activeTab.type === 'file' && activeTab.path.startsWith(oldPrefix)) {
+              activeTab.path = newPrefix + activeTab.path.substring(oldPrefix.length);
+            }
+          }
+          renderSidebar(fileSystem, sidebar);
+          renderTabs();
+          showToast(`Renamed ${path} to ${newPath}`);
+        }
+      }
+
+      function copyItem(path, dest) {
+        const destParts = dest.split('/');
+        const destName = destParts.pop();
+        let destCurrent = fileSystem;
+        for (let part of destParts) {
+          if (!destCurrent[part]) destCurrent[part] = {};
+          destCurrent = destCurrent[part];
+        }
+        if (destCurrent[destName]) {
+          showToast(`Cannot copy: ${dest} already exists`, true);
+          return;
+        }
+        const parts = path.split('/');
+        const itemName = parts.pop();
+        let current = fileSystem;
+        for (let part of parts) current = current[part];
+        if (current[itemName]) {
+          destCurrent[destName] = deepCopy(current[itemName]);
+          renderSidebar(fileSystem, sidebar);
+          showToast(`Copied ${path} to ${dest}`);
+        }
+      }
+
+      function moveItem(path, destination) {
+        const destParts = destination.split('/');
+        const destName = destParts.pop();
+        let destCurrent = fileSystem;
+        for (let part of destParts) {
+          if (!destCurrent[part]) destCurrent[part] = {};
+          destCurrent = destCurrent[part];
+        }
+        if (destCurrent[destName]) {
+          showToast(`Cannot move: ${destination} already exists`, true);
+          return;
+        }
+        const parts = path.split('/');
+        const itemName = parts.pop();
+        let current = fileSystem;
+        for (let part of parts) current = current[part];
+        if (current[itemName]) {
+          destCurrent[destName] = current[itemName];
+          delete current[itemName];
+          const oldPrefix = path + '/';
+          const newPrefix = destination + '/';
+          openTabs.forEach(tab => {
+            if (tab.type === 'file') {
+              if (tab.path === path) tab.path = destination;
+              else if (tab.path.startsWith(oldPrefix)) tab.path = newPrefix + tab.path.substring(oldPrefix.length);
+            }
+          });
+          const newModels = {};
+          for (let p in models) {
+            if (p === path) newModels[destination] = models[p];
+            else if (p.startsWith(oldPrefix)) newModels[newPrefix + p.substring(oldPrefix.length)] = models[p];
+            else newModels[p] = models[p];
+          }
+          models = newModels;
+          const newFileContents = {};
+          for (let p in fileContents) {
+            if (p === path) newFileContents[destination] = fileContents[p];
+            else if (p.startsWith(oldPrefix)) newFileContents[newPrefix + p.substring(oldPrefix.length)] = fileContents[p];
+            else newFileContents[p] = fileContents[p];
+          }
+          fileContents = newFileContents;
+          if (activeTab && activeTab.type === 'file') {
+            if (activeTab.path === path) activeTab.path = destination;
+            else if (activeTab.path.startsWith(oldPrefix)) activeTab.path = newPrefix + activeTab.path.substring(oldPrefix.length);
+          }
+          renderSidebar(fileSystem, sidebar);
+          renderTabs();
+          showToast(`Moved ${path} to ${destination}`);
+        }
+      }
+
+      function createNewFile(path) {
+        const parts = path.split('/');
+        let current = fileSystem;
+        for (let i = 0; i < parts.length - 1; i++) {
+          const part = parts[i];
+          if (!current[part]) current[part] = {};
+          current = current[part];
+        }
+        const name = parts[parts.length - 1];
+        if (current[name]) {
+          showToast(`File already exists at ${path}`, true);
+        } else {
+          current[name] = '';
+          renderSidebar(fileSystem, sidebar);
+          openFile(path);
+          showToast(`Created file at ${path}`);
+        }
+      }
+
+      function createNewFolder(path) {
+        const parts = path.split('/');
+        let current = fileSystem;
+        for (let i = 0; i < parts.length - 1; i++) {
+          const part = parts[i];
+          if (!current[part]) current[part] = {};
+          current = current[part];
+        }
+        const name = parts[parts.length - 1];
+        if (current[name]) {
+          showToast(`Folder already exists at ${path}`, true);
+        } else {
+          current[name] = {};
+          renderSidebar(fileSystem, sidebar);
+          showToast(`Created folder at ${path}`);
+        }
+      }
+
+      function getAllFilePaths(fs, path = "") {
+        let paths = [];
+        for (const key in fs) {
+          const fullPath = path ? path + "/" + key : key;
+          if (typeof fs[key] === "string") paths.push(fullPath);
+          else paths = paths.concat(getAllFilePaths(fs[key], fullPath));
+        }
+        return paths;
+      }
+
+      function getDifferences(currentFS, committedFS) {
+        const currentPaths = getAllFilePaths(currentFS).filter(p => !shouldIgnore(p));
+        const committedPaths = getAllFilePaths(committedFS).filter(p => !shouldIgnore(p));
+        const added = currentPaths.filter(p => !committedPaths.includes(p));
+        const deleted = committedPaths.filter(p => !currentPaths.includes(p));
+        const modified = currentPaths.filter(p => committedPaths.includes(p) && getFileContentByPath(p, currentFS) !== getFileContentByPath(p, committedFS));
+        return { added, deleted, modified };
+      }
+
+      function shouldIgnore(path) {
+        return ignoredPatterns.some(pattern => {
+          const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+          return regex.test(path);
+        });
+      }
+
+      function showToast(message, isError = false) {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.style.background = isError ? "#e53e3e" : "#333";
+        toast.style.display = "block";
+        setTimeout(() => toast.style.display = "none", 2000);
+      }
+
+      function showModal(title, message, showInput = false, confirmText = 'Confirm', onConfirm, options = []) {
+        document.getElementById('modal-title').textContent = title;
+        document.getElementById('modal-message').textContent = message;
+        const input = document.getElementById('modal-input');
+        const select = document.getElementById('modal-select');
+        input.classList.toggle('hidden', !showInput || options.length > 0);
+        select.classList.toggle('hidden', !options.length);
+        if (showInput && !options.length) input.value = '';
+        if (options.length) {
+          select.innerHTML = options.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('');
+        }
+        document.getElementById('modal-confirm').textContent = confirmText;
+        document.getElementById('modal').style.display = 'flex';
+        const confirmBtn = document.getElementById('modal-confirm');
+        const cancelBtn = document.getElementById('modal-cancel');
+        const handleConfirm = () => {
+          const value = options.length ? select.value : (showInput ? input.value : null);
+          onConfirm(value);
+          hideModal();
+        };
+        const hideModal = () => {
+          document.getElementById('modal').style.display = 'none';
+          confirmBtn.removeEventListener('click', handleConfirm);
+          cancelBtn.removeEventListener('click', hideModal);
+          input.removeEventListener('keydown', handleEnter);
+        };
+        const handleEnter = (e) => {
+          if (e.key === 'Enter') handleConfirm();
+        };
+        if (showInput && !options.length) input.addEventListener('keydown', handleEnter);
+        confirmBtn.addEventListener('click', handleConfirm);
+        cancelBtn.addEventListener('click', hideModal);
+      }
+
+      function getUniqueDisplayNames(paths) {
+        const groups = {};
+        for (const path of paths) {
+          const parts = path.split('/');
+          const name = parts.pop();
+          if (!groups[name]) groups[name] = [];
+          groups[name].push(path);
+        }
+        const displayNames = {};
+        for (const name in groups) {
+          const group = groups[name];
+          if (group.length === 1) {
+            displayNames[group[0]] = name;
+          } else {
+            const prefixes = group.map(path => {
+              const parts = path.split('/');
+              parts.pop();
+              return parts.join('/');
+            });
+            const prefixDisplayNames = getUniqueDisplayNames(prefixes.filter(p => p));
+            for (let i = 0; i < group.length; i++) {
+              const path = group[i];
+              const prefix = prefixes[i];
+              const prefixDisplay = prefixDisplayNames[prefix] || (prefix ? prefix.split('/').pop() : '');
+              displayNames[path] = prefixDisplay ? prefixDisplay + '/' + name : name;
+            }
+          }
+        }
+        return displayNames;
+      }
+
+      function openDiff(leftPath, rightPath) {
+        const tab = { type: 'diff', leftPath, rightPath };
+        openTabs.push(tab);
+        setActiveTab(tab);
+        showToast(`Opened diff: ${leftPath} vs ${rightPath}`);
+      }
+
+      function exportFileSystem() {
+        const data = JSON.stringify(fileSystem, null, 2);
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'filesystem.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('File system exported');
+      }
+
+      function importFileSystem(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const importedFS = JSON.parse(e.target.result);
+            showModal('Import Options', 'Choose how to import:', false, 'Import', (mode) => {
+              if (mode === 'overwrite') {
+                fileSystem = importedFS;
+                openTabs = [];
+                activeTab = null;
+                models = {};
+                fileContents = {};
+              } else if (mode === 'append') {
+                Object.assign(fileSystem, importedFS);
+              }
+              renderSidebar(fileSystem, sidebar);
+              renderTabs();
+              showToast('File system imported');
+            }, [
+              { value: 'overwrite', label: 'Overwrite Current' },
+              { value: 'append', label: 'Append to Current' }
+            ]);
+          } catch (err) {
+            showToast('Invalid JSON file', true);
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      function updateEditorSettings() {
+        window.editor.updateOptions({
+          fontSize: 14,
+          lineNumbers: 'on'
+        });
+      }
+
+      function recordMacro() {
+        macroRecording = !macroRecording;
+        if (macroRecording) {
+          macroActions = [];
+          showToast('Macro recording started');
+        } else {
+          showToast('Macro recorded');
+        }
+      }
+
+      function playbackMacro() {
+        if (!macroActions.length) {
+          showToast('No macro recorded', true);
+          return;
+        }
+        macroActions.forEach(action => {
+          if (action.type === 'edit' && activeTab && activeTab.type === 'file') {
+            window.editor.setValue(action.value);
+          }
+        });
+        showToast('Macro played back');
+      }
+
+      const sidebar = document.getElementById("file-tree");
+      document.getElementById("toggle-sidebar").onclick = () => {
+        const sidebarEl = document.getElementById('sidebar');
+        sidebarEl.classList.toggle('hidden');
+        document.getElementById('toggle-sidebar').textContent = sidebarEl.classList.contains('hidden') ? 'Show Sidebar' : 'Hide Sidebar';
+        renderSidebar(fileSystem, sidebar);
+      };
+      document.getElementById("new-file").onclick = () => {
+        showModal('New File', 'Enter file path:', true, 'Create', (path) => {
+          if (path) createNewFile(path);
+        });
+      };
+      document.getElementById("new-folder").onclick = () => {
+        showModal('New Folder', 'Enter folder path:', true, 'Create', (path) => {
+          if (path) createNewFolder(path);
+        });
+      };
+      document.getElementById("commit").onclick = () => {
+        if (isVersioningEnabled) {
+          showModal('Commit', 'Enter commit title:', true, 'Commit', (title) => {
+            if (title) {
+              commits.push({ title, timestamp: new Date(), fileSystem: deepCopy(fileSystem) });
+              renderSidebar(fileSystem, sidebar);
+              showToast('Changes committed');
+            }
+          });
+        } else {
+          showToast('Versioning is disabled', true);
+        }
+      };
+      document.getElementById("view-commits").onclick = () => {
+        if (!commits.length) {
+          showToast('No commits yet', true);
+          return;
+        }
+        const options = commits.map((c, i) => ({ value: i, label: `${c.title} - ${c.timestamp.toLocaleString()}` }));
+        showModal('View Commits', 'Select a commit to revert to:', false, 'Revert', (index) => {
+          if (index !== null) {
+            fileSystem = deepCopy(commits[index].fileSystem);
+            openTabs = [];
+            activeTab = null;
+            models = {};
+            fileContents = {};
+            renderSidebar(fileSystem, sidebar);
+            renderTabs();
+            showToast(`Reverted to commit: ${commits[index].title}`);
+          }
+        }, options);
+      };
+      document.getElementById("toggle-versioning").onclick = () => {
+        isVersioningEnabled = !isVersioningEnabled;
+        document.getElementById('toggle-versioning').textContent = isVersioningEnabled ? 'Disable Versioning' : 'Enable Versioning';
+        renderSidebar(fileSystem, sidebar);
+        showToast(`Versioning ${isVersioningEnabled ? 'enabled' : 'disabled'}`);
+      };
+      document.getElementById("export-fs").onclick = exportFileSystem;
+      document.getElementById("import-fs-btn").onclick = () => document.getElementById('import-fs').click();
+      document.getElementById("import-fs").onchange = (e) => importFileSystem(e.target.files[0]);
+      document.getElementById("theme-select").onchange = (e) => {
+        monaco.editor.setTheme(e.target.value);
+        showToast(`Theme changed to ${e.target.value}`);
+      };
+      document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const action = item.dataset.action;
+          const path = document.getElementById("context-menu").dataset.path;
+          const type = document.getElementById("context-menu").dataset.type;
+          handleAction(action, path, type);
+          document.getElementById("context-menu").style.display = 'none';
+        });
+      });
+      document.addEventListener('click', () => {
+        document.getElementById("context-menu").style.display = 'none';
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'F2' && selectedItem) {
+          const path = selectedItem.dataset.path;
+          const type = selectedItem.className.includes('file') ? 'file' : 'folder';
+          showModal('Rename', `Enter new name for ${type} ${path.split('/').pop()}:`, true, 'Rename', (newName) => {
+            if (newName) renameItem(path, newName);
+          });
+        } else if (e.ctrlKey && e.key === 's' && activeTab && activeTab.type === 'file') {
+          showToast(`Saved ${activeTab.path.split('/').pop()}`);
+        } else if (e.altKey && e.key === 'r') {
+          recordMacro();
+        } else if (e.altKey && e.key === 'p') {
+          playbackMacro();
+        }
+        if (macroRecording && activeTab && activeTab.type === 'file') {
+          macroActions.push({ type: 'edit', value: window.editor.getValue() });
+        }
+      });
+
+      require.config({ paths: { 'vs': './monaco/package/dev/vs' } });
+      require(['vs/editor/editor.main'], function () {
+        window.editor = monaco.editor.create(document.getElementById('regular-editor'), {
+          language: "javascript",
+          theme: "vs-dark",
+          automaticLayout: true,
+          fontSize: 14,
+          lineNumbers: 'on'
+        });
+        window.diffEditor = monaco.editor.createDiffEditor(document.getElementById('diff-editor'), {
+          theme: "vs-dark",
+          automaticLayout: true,
+          readOnly: true
+        });
+        if (fileSystem['.gitignore']) {
+          ignoredPatterns = getFileContentByPath('.gitignore', fileSystem).split('\n').filter(line => line.trim() && !line.startsWith('#'));
+        }
+        renderSidebar(fileSystem, sidebar);
+        openFile("src/main.js");
+      });
+
+
+
+
+
+
+
+
+
+
+      // THE IFRAME parent communication
+        window.addEventListener('message', (e) => {
+    // If you kept an origin check, do it here
+
+    if (e.data?.type === 'getFileSystem') {
+      e.source.postMessage(
+        { type: 'fileSystem', payload: fileSystem },
+        e.origin || '*'
+      );
+    }
+});
+    </script>
+  </body>
+</html>

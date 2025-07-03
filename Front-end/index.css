@@ -1,0 +1,45 @@
+/* Reset some default styles */
+body, html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: Arial, sans-serif;
+  background: #222;
+  color: #eee;
+}
+
+.UI {
+  display: flex;
+  flex-direction: row;
+  height: 100vh;
+  width: 100vw;
+}
+
+#sideWindow\ left {
+  flex: 1 1 50%;
+  background: #111;
+  border: none;
+  display: block;
+  width: 100%;
+  height: 100vh;
+}
+
+#sideWindow\ right {
+  flex: 1 1 60%;
+  border: none;
+  width: 100%;
+  height: 100vh;
+  background: #222;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.2);
+}
+
+/* Optional: Responsive tweaks */
+@media (max-width: 800px) {
+  .UI {
+    flex-direction: column;
+  }
+  #sideWindow\ left, #sideWindow\ right {
+    height: 50vh;
+    width: 100vw;
+  }
+}

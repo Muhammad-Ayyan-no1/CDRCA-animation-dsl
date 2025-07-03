@@ -17,9 +17,10 @@ let ObjectAnimationSystem = function () {
       0.1,
       1000
     );
-    const renderer = new THREE.WebGLRenderer();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+
+    const canvas = document.getElementById("THRREjsRender");
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas });
+    renderer.setSize(window.innerWidth / 2, window.innerHeight / 2);
 
     const light = new THREE.DirectionalLight(0xffffff, 1);
     light.position.set(5, 10, 7.5);

@@ -1,11 +1,20 @@
 <!DOCTYPE html>
 <html>
-    <head>
-      <title> Visual CDRCA</title>
-    </head>
-    <body>
-      <script src="three.js"></script>
-    <script src="index.js"></script>
-    <script src="Renderer.js"></script>
-    </body>
-</html> 
+  <head>
+    <title>Visual CDRCA</title>
+    <link rel="stylesheet" href="index.css">
+  </head>
+  <body>
+    <div class="UI">
+       <!-- <canvas id="sideWindow left THRREjsRender"></canvas> -->
+       <canvas id="THRREjsRender"></canvas>
+       <iframe id="sideWindow right" src="textEditerWindow/index.html"></iframe> 
+ </div>
+   
+    <script src="./three.js"></script>
+    <script src="./index.js"></script>
+    <script src="./Renderer.js"></script>
+    <script src="./parser.js"></script>
+    <!-- <script src="./monaco/package/dev/vs/loader.js"></script> -->
+  </body>
+</html>  
