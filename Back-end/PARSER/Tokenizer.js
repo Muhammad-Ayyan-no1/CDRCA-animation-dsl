@@ -442,3 +442,5 @@ function defaultTokenizer(code) {
   // console.log("TOKENS", JSON.stringify(tokens, null, 2));
   return tokens;
 }
+
+module.exports = { defaultTokenizer };
