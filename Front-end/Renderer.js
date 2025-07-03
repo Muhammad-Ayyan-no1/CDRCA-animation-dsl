@@ -108,9 +108,15 @@ let ObjectAnimationSystem = function () {
         scene.add(getOBJmesh(objs[i], totalTime, lerpProgress, 1));
       }
     }
-
+    var ForcedHult = false;
+    function instantHault() {
+      ForcedHult = true;
+    }
+    function instantUnhault() {
+      ForcedHult = false;
+    }
     function animate(timestamp) {
-      requestAnimationFrame(animate);
+      if (!ForcedHult) requestAnimationFrame(animate);
       totalFrames += 1;
       if (currentStartTime === 0) currentStartTime = timestamp;
 
@@ -152,6 +158,9 @@ let ObjectAnimationSystem = function () {
     return {
       goToNextOOT: () => currentOOT++,
       init: () => animate(0),
+      instantHault,
+      instantUnhault,
+      getHault: () => ForcedHult,
     };
   }
 
@@ -374,7 +383,6 @@ let ObjectAnimationSystem = function () {
       return config;
     }
   }
-
   // PSA_SYS function abstracts prop system with actions system
   function PSA_SYS(PSA) {
     const scenes = [];
@@ -410,13 +418,27 @@ let ObjectAnimationSystem = function () {
         )
       );
     }
+    let rendererInstance = null;
     return {
       init: (FPS, loopAtEnd) => {
         const gradientMap = PSA.defaultGredientMap || PSA.defaultGradientMap;
-        CORE_3d_PROPSsceneSYS.init(FPS, loopAtEnd, scenes, gradientMap);
+        rendererInstance = CORE_3d_PROPSsceneSYS.init(
+          FPS,
+          loopAtEnd,
+          scenes,
+          gradientMap
+        );
+        // Expose renderer controls at the edge
+        return {
+          instantHault: rendererInstance.instantHault,
+          goToNextOOT: rendererInstance.goToNextOOT,
+          instantUnhault: rendererInstance.instantUnhault,
+        };
       },
+      getRendererInstance: () => rendererInstance,
     };
   }
+
   return {
     main: PSA_SYS,
     baseProp: CORE_3d_PROPSsceneSYS.Prop,
@@ -465,7 +487,7 @@ let ObjectAnimationSystem = function () {
 };
 let ObjectAnimationSystem_INS = ObjectAnimationSystem();
 
-ObjectAnimationSystem_INS.main({
+let a = ObjectAnimationSystem_INS.main({
   defaultGredientMap: new THREE.DataTexture(
     new Uint8Array([255, 255, 255, 255, 255, 255, 255, 255, 255]),
     3,
