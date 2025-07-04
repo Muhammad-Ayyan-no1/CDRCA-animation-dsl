@@ -18,4 +18,10 @@ add new action abc STAY_TIME LERP_TIME
 // console.log(JSON.stringify(ast, null, 2));
 
 let Parttranspiled = partial_transpiler_INS.transpile(ast);
-console.log(JSON.stringify(Parttranspiled, null, 2));
+// console.log(JSON.stringify(Parttranspiled, null, 2));
+
+module.exports = {
+  transpile: (a) => {
+    return "// working on completing this";
+  },
+};

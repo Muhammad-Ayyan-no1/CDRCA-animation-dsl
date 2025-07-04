@@ -419,22 +419,26 @@ let ObjectAnimationSystem = function () {
       );
     }
     let rendererInstance = null;
+    function init(FPS, loopAtEnd) {
+      const gradientMap = PSA.defaultGredientMap || PSA.defaultGradientMap;
+      rendererInstance = CORE_3d_PROPSsceneSYS.init(
+        FPS,
+        loopAtEnd,
+        scenes,
+        gradientMap
+      );
+      // Expose renderer controls at the edge
+      return {
+        instantHault: rendererInstance.instantHault,
+        goToNextOOT: rendererInstance.goToNextOOT,
+        instantUnhault: rendererInstance.instantUnhault,
+        rendererInstance: rendererInstance,
+        haulted: rendererInstance.getHault,
+        init: init,
+      };
+    }
     return {
-      init: (FPS, loopAtEnd) => {
-        const gradientMap = PSA.defaultGredientMap || PSA.defaultGradientMap;
-        rendererInstance = CORE_3d_PROPSsceneSYS.init(
-          FPS,
-          loopAtEnd,
-          scenes,
-          gradientMap
-        );
-        // Expose renderer controls at the edge
-        return {
-          instantHault: rendererInstance.instantHault,
-          goToNextOOT: rendererInstance.goToNextOOT,
-          instantUnhault: rendererInstance.instantUnhault,
-        };
-      },
+      init,
       getRendererInstance: () => rendererInstance,
     };
   }
@@ -486,45 +490,3 @@ let ObjectAnimationSystem = function () {
   // PSA_SYS(PSA).init(60, false);
 };
 let ObjectAnimationSystem_INS = ObjectAnimationSystem();
-
-let a = ObjectAnimationSystem_INS.main({
-  defaultGredientMap: new THREE.DataTexture(
-    new Uint8Array([255, 255, 255, 255, 255, 255, 255, 255, 255]),
-    3,
-    1,
-    THREE.RGBFormat
-  ),
-  scenes: [
-    {
-      stayTimeInit: 1000,
-      stayTimeEnd: 1000,
-      lerpTime: 500,
-      backgroundColor: 0x000000,
-      PropsDef: [
-        new ObjectAnimationSystem_INS.CORE_3d_PROPSsceneSYS.exampleProps.RotatingCubeProp(
-          0x00ff00,
-          1
-        ),
-      ],
-      actions: [
-        {
-          stayTime: 2000,
-          lerpTime: 500,
-          action: (PropsArr) => {
-            // u can also call any method and hence do default stuff too
-            // if (PropsArr[0].doAction) {
-            //   PropsArr[0].doAction(); // after this commit are supported
-            // }
-            return PropsArr.map(
-              (prop) => (mesh, totalTime, lerpProgress, step) => {
-                mesh.position.x = Math.sin(totalTime);
-                mesh.position.y = Math.cos(totalTime);
-                return mesh;
-              }
-            );
-          },
-        },
-      ],
-    },
-  ],
-}).init(60, true);

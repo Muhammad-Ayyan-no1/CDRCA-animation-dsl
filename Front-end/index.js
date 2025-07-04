@@ -1,7 +1,51 @@
 let currentANIM = null;
 
-async function refreshPreview() {
+// placeholder  as default demo
+currentANIM = ObjectAnimationSystem_INS.main({
+  defaultGredientMap: new THREE.DataTexture(
+    new Uint8Array([255, 255, 255, 255, 255, 255, 255, 255, 255]),
+    3,
+    1,
+    THREE.RGBFormat
+  ),
+  scenes: [
+    {
+      stayTimeInit: 1000,
+      stayTimeEnd: 1000,
+      lerpTime: 500,
+      backgroundColor: 0x000000,
+      PropsDef: [
+        new ObjectAnimationSystem_INS.CORE_3d_PROPSsceneSYS.exampleProps.RotatingCubeProp(
+          0x00ff00,
+          1
+        ),
+      ],
+      actions: [
+        {
+          stayTime: 2000,
+          lerpTime: 500,
+          action: (PropsArr) => {
+            // u can also call any method and hence do default stuff too
+            // if (PropsArr[0].doAction) {
+            //   PropsArr[0].doAction(); // after this commit are supported
+            // }
+            return PropsArr.map(
+              (prop) => (mesh, totalTime, lerpProgress, step) => {
+                mesh.position.x = Math.sin(totalTime);
+                mesh.position.y = Math.cos(totalTime);
+                return mesh;
+              }
+            );
+          },
+        },
+      ],
+    },
+  ],
+}).init(60, true);
+
+async function refreshPreview(fileSYS = null) {
   var fileSystem =
+    fileSYS ||
     (await (async function () {
       const iframeTextEditer = document.getElementById("textEditer");
       if (!iframeTextEditer) {
@@ -36,21 +80,22 @@ async function refreshPreview() {
       });
 
       return payload;
-    })()) || {};
+    })()) ||
+    {};
   return updateRenderer(await transpileCDRCA(fileSystem));
 }
 
 function updateRenderer(newJScode) {
   if (currentANIM) currentANIM.instantHault();
-  //   console.log(newJScode);
-  currentANIM = ObjectAnimationSystem_INS.main(
-    new Function(`
-  function a() {
-    ${newJScode}
-  }
-  return a();
-`)()
-  );
+  // console.log(newJScode);
+  eval(newJScode); // yes  we should ensure to use https (if not local hosting) now  because server returns executable and by nature of dsl it has to
+  if (!currentANIM.haulted())
+    console.warn(
+      "BUG in backend, did not changed the currentANIM variable to new instance at updateRenderer"
+    );
   //   console.log(currentANIM);
-  currentANIM.init(60, true);
+
+  currentANIM = currentANIM.init(60, true);
+
+  console.info("succesfully re rendered");
 }
