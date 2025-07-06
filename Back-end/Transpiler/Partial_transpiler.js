@@ -58,7 +58,7 @@ const createTranspiler = function (parserINSs) {
     if (statment.prams.abstracts) {
       extendsClasses.push(...(statment.prams.optionOtherPROP.split(",") || []));
     }
-    code += `mixClasses([${extendsClasses.join(",")}])`; //mixClasses extends all the classes and returns a new class to be extended as   N+M extends ... N+2 extends N + 1 extends N    N be arr item from 0th index and M being arr.len
+    code += ` mixClasses([${extendsClasses.join(",")}])`; //mixClasses extends all the classes and returns a new class to be extended as   N+M extends ... N+2 extends N + 1 extends N    N be arr item from 0th index and M being arr.len
 
     code += `{
 ${statment.prams.code}    
@@ -125,20 +125,22 @@ ${statment.prams.code}
         };
       case "JS_BLOCK":
         return { value: `(()=>{${statement.prams.code}})()`, type: "JS_BLOCK" };
+
       case "PROP_DEF":
         return {
           statement: statement,
           value: createPROPdef(statement),
           type: "PROP_DEF",
           hoisted: {
+            hoist: true,
             group: {
-              AND: [["PROPS"]],
+              AND: [["PROP_DEF"]],
               // OR: [],
             },
             target: { line: 0 },
             lowerPriority: {
-              AND: [["ACTIONS"]],
-              OR: [["ACTIONS"]],
+              AND: [["ACTION_DEF"]],
+              OR: [["ACTION_DEF"]],
             },
           },
         };
@@ -148,8 +150,9 @@ ${statment.prams.code}
           value: createActionDef(statement),
           type: "ACTION_DEF",
           hoisted: {
+            hoist: true,
             group: {
-              AND: [["ACTIONS"]],
+              AND: [["ACTION_DEF"]],
               // OR: [],
             },
             target: { line: 0 },
@@ -159,12 +162,14 @@ ${statment.prams.code}
             },
           },
         };
+
       case "PROP_USE":
         return {
           statement: statement,
           value: createPropUSE(statement),
           type: "PROP_USE",
         };
+      // THE OBJ STACK used stuff
       case "ACTION_USE":
         return {
           statement: statement,
@@ -175,6 +180,7 @@ ${statment.prams.code}
         },`,
           type: "ACTION_USE",
         };
+
       case "GREDIENT_MAP":
         /*
 defaultGredientMap: new THREE.DataTexture(
@@ -206,7 +212,7 @@ defaultGredientMap: new THREE.DataTexture(
       case "COMMENT":
         return {
           statement: statement,
-          value: `// ${statement.value}`,
+          value: `// ${statement.prams.value}`,
           type: "COMMENT",
         };
       default:
@@ -226,6 +232,43 @@ defaultGredientMap: new THREE.DataTexture(
   }
 
   // Main transpiler function that processes the entire AST iteratively
+  // function transpile(ast) {
+  //   if (!Array.isArray(ast)) {
+  //     throw new Error("AST must be an array");
+  //   }
+
+  //   const stack = [];
+  //   const codeBlocks = [];
+
+  //   for (let i = ast.length - 1; i >= 0; i--) {
+  //     stack.push(ast[i]);
+  //   }
+
+  //   while (stack.length > 0) {
+  //     const node = stack.pop();
+
+  //     if (node.TYPE === "STATEMENTS") {
+  //       const statementsCode = transpileStatements(node.VALUE);
+  //       codeBlocks.push(...MakeARR(statementsCode));
+  //     } else if (node.TYPE === "HEADER") {
+  //       const childNodes = node.VALUE.CODE;
+  //       for (let i = childNodes.length - 1; i >= 0; i--) {
+  //         stack.push(childNodes[i]);
+  //       }
+  //     } else if (node["SUB-HEADER"]) {
+  //       const childNodes = node["SUB-HEADER"][0].CODE;
+  //       for (let i = childNodes.length - 1; i >= 0; i--) {
+  //         stack.push(childNodes[i]);
+  //       }
+  //     } else {
+  //       throw new Error("Unknown item type in AST");
+  //     }
+  //   }
+
+  //   // return codeBlocks.join("\n");
+  //   return codeBlocks;
+  // }
+
   function transpile(ast) {
     if (!Array.isArray(ast)) {
       throw new Error("AST must be an array");
@@ -245,23 +288,69 @@ defaultGredientMap: new THREE.DataTexture(
         const statementsCode = transpileStatements(node.VALUE);
         codeBlocks.push(...MakeARR(statementsCode));
       } else if (node.TYPE === "HEADER") {
+        // Add opening spacer
+        codeBlocks.push({
+          prams: {
+            gate: "opening",
+            ast: node,
+            type: "Header",
+          },
+          type: "Header",
+          gate: "opening",
+          value: "Header opening",
+          ast: node,
+        });
         const childNodes = node.VALUE.CODE;
         for (let i = childNodes.length - 1; i >= 0; i--) {
           stack.push(childNodes[i]);
         }
+        // Add closing spacer
+        codeBlocks.push({
+          prams: {
+            gate: "closing",
+            ast: node,
+            type: "Header",
+          },
+          type: "Header",
+          gate: "closing",
+          value: "Header closing",
+          ast: node,
+        });
       } else if (node["SUB-HEADER"]) {
+        // Add opening spacer
+        codeBlocks.push({
+          prams: {
+            gate: "opening",
+            ast: node,
+            type: "SubHeader",
+          },
+          type: "SubHeader",
+          gate: "opening",
+          value: "SubHeader opening",
+          ast: node,
+        });
         const childNodes = node["SUB-HEADER"][0].CODE;
         for (let i = childNodes.length - 1; i >= 0; i--) {
           stack.push(childNodes[i]);
         }
+        // Add closing spacer
+        codeBlocks.push({
+          prams: {
+            gate: "closing",
+            ast: node,
+            type: "SubHeader",
+          },
+          type: "SubHeader",
+          gate: "closing",
+          value: "SubHeader closing",
+          ast: node,
+        });
       } else {
         throw new Error("Unknown item type in AST");
       }
     }
 
     // return codeBlocks.join("\n");
-    //  here the post semantic analyzer would work and connect everything together   it will do hositing with values and soo on
-    // this one is a TODO
     return codeBlocks;
   }
 
