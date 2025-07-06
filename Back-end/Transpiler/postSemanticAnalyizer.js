@@ -239,15 +239,19 @@ function create() {
     if (statment.statement && statment.statement.prams) {
       type = statment.statement.type;
       prams = statment.statement.prams;
+    } else if (statment.statements && statment.statements.prams) {
+      type = statment.statements.type;
+      prams = statment.statements.prams;
     } else if (statment.type && statment.prams) {
       type = statment.type;
       prams = statment.prams;
     } else {
-      console.log("unknown statment", statment);
+      console.log("unknown statment structure", statment);
       return [
         "//AUTO_COMMENTED_ERR note that error while auto commenting this statment as statment structure not compatible",
       ];
     }
+
     switch (type) {
       case "IMPORT":
         return [`//here we import (hoisted type) from ${prams.path}`];
@@ -320,6 +324,9 @@ function create() {
         }
         return [`// The ${prams.gate} of the ${prams.type} with ${nextUsed}`];
         break;
+      case "ArtificialHeader":
+        return [""];
+        break;
       default:
         console.warn(
           "// unknown statment at auto commenting system , post semantic analyzer",
@@ -331,6 +338,7 @@ function create() {
         ];
         break;
     }
+    return ["// no comments for the statment"];
   }
 
   function addCommentsToStatments(PT) {

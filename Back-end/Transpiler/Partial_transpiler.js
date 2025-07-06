@@ -223,99 +223,6 @@ defaultGredientMap: new THREE.DataTexture(
   function transpileStatements(statements) {
     let r = statements.map(transpileStatement); //.join("\n");
     // console.log("TS: ", r);
-    r.push(
-      // PROP_DEF
-      {
-        type: "ArtificialHeader",
-        statements: {
-          type: "ArtificialHeader",
-          prams: {
-            ArtificialHeader_TYPE: "PROP_DEF",
-            gate: "opening",
-          },
-        },
-        value: "",
-        hoisted: {
-          hoist: true,
-          group: {
-            AND: [["AH_PROP_DEF_opening"]],
-          },
-          target: { line: 1 },
-          lowerPriority: {
-            AND: [["PROP_DEF"]],
-            OR: [["PROP_DEF"]],
-          },
-        },
-      },
-      {
-        type: "ArtificialHeader",
-        statements: {
-          type: "ArtificialHeader",
-          prams: {
-            ArtificialHeader_TYPE: "PROP_DEF",
-            gate: "closing",
-          },
-        },
-        value: "",
-        hoisted: {
-          hoist: true,
-          group: {
-            AND: [["AH_PROP_DEF_closing"]],
-          },
-          target: { line: 1 },
-          upperPriority: {
-            AND: [["PROP_DEF"]],
-            OR: [["PROP_DEF"]],
-          },
-        },
-      },
-
-      // ACTION_DEF
-      {
-        type: "ArtificialHeader",
-        statements: {
-          type: "ArtificialHeader",
-          prams: {
-            ArtificialHeader_TYPE: "ACTION_DEF",
-            gate: "opening",
-          },
-        },
-        value: "",
-        hoisted: {
-          hoist: true,
-          group: {
-            AND: [["AH_ACTION_DEF_opening"]],
-          },
-          target: { line: 0 },
-          lowerPriority: {
-            AND: [["ACTION_DEF"]],
-            OR: [["ACTION_DEF"]],
-          },
-        },
-      },
-      {
-        type: "ArtificialHeader",
-        statements: {
-          type: "ArtificialHeader",
-          prams: {
-            ArtificialHeader_TYPE: "ACTION_DEF",
-            gate: "closing",
-          },
-        },
-        value: "",
-        hoisted: {
-          hoist: true,
-          group: {
-            AND: [["AH_ACTION_DEF_closing"]],
-          },
-          target: { line: 0 },
-          upperPriority: {
-            AND: [["ACTION_DEF"]],
-            OR: [["ACTION_DEF"]],
-          },
-        },
-      }
-    );
     return r;
   }
 
@@ -442,7 +349,99 @@ defaultGredientMap: new THREE.DataTexture(
         throw new Error("Unknown item type in AST");
       }
     }
+    codeBlocks.push(
+      // PROP_DEF
+      {
+        type: "ArtificialHeader",
+        statements: {
+          type: "ArtificialHeader",
+          prams: {
+            ArtificialHeader_TYPE: "PROP_DEF",
+            gate: "opening",
+          },
+        },
+        value: "",
+        hoisted: {
+          hoist: true,
+          group: {
+            AND: [["AH_PROP_DEF_opening"]],
+          },
+          target: { line: 1 },
+          lowerPriority: {
+            AND: [["PROP_DEF"]],
+            OR: [["PROP_DEF"]],
+          },
+        },
+      },
+      {
+        type: "ArtificialHeader",
+        statements: {
+          type: "ArtificialHeader",
+          prams: {
+            ArtificialHeader_TYPE: "PROP_DEF",
+            gate: "closing",
+          },
+        },
+        value: "",
+        hoisted: {
+          hoist: true,
+          group: {
+            AND: [["AH_PROP_DEF_closing"]],
+          },
+          target: { line: 1 },
+          upperPriority: {
+            AND: [["PROP_DEF"]],
+            OR: [["PROP_DEF"]],
+          },
+        },
+      },
 
+      // ACTION_DEF
+      {
+        type: "ArtificialHeader",
+        statements: {
+          type: "ArtificialHeader",
+          prams: {
+            ArtificialHeader_TYPE: "ACTION_DEF",
+            gate: "opening",
+          },
+        },
+        value: "",
+        hoisted: {
+          hoist: true,
+          group: {
+            AND: [["AH_ACTION_DEF_opening"]],
+          },
+          target: { line: 0 },
+          lowerPriority: {
+            AND: [["ACTION_DEF"]],
+            OR: [["ACTION_DEF"]],
+          },
+        },
+      },
+      {
+        type: "ArtificialHeader",
+        statements: {
+          type: "ArtificialHeader",
+          prams: {
+            ArtificialHeader_TYPE: "ACTION_DEF",
+            gate: "closing",
+          },
+        },
+        value: "",
+        hoisted: {
+          hoist: true,
+          group: {
+            AND: [["AH_ACTION_DEF_closing"]],
+          },
+          target: { line: 0 },
+          upperPriority: {
+            AND: [["ACTION_DEF"]],
+            OR: [["ACTION_DEF"]],
+          },
+        },
+      }
+    );
     // return codeBlocks.join("\n");
     return codeBlocks;
   }
