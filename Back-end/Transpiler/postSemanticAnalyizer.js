@@ -318,7 +318,7 @@ function create() {
             prams.ast["SUB-HEADER"][GLOBAL_STORAGE.SubHeader.counter] || {}
           ).USED;
         }
-        return [`// The ${prams.gate} of the ${prams.type} with ${prams.ast}`];
+        return [`// The ${prams.gate} of the ${prams.type} with ${nextUsed}`];
         break;
       default:
         console.warn(
