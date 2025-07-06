@@ -19,7 +19,7 @@ function create() {
           }
           result += string;
         } else {
-          result += "//[missing]";
+          result += "/*[missing while PST translation at render template]*/";
         }
       } else if ("conditional" in element) {
         const conditionResult = element.conditional.condition(context);
@@ -97,9 +97,6 @@ let OAS_OBJ = {
   scenes: [`,
     },
     {
-      str: "let OAS_OBJ = {",
-    },
-    {
       placeholder: [
         "stayTimeInit",
         "stayTimeEnd",
@@ -133,11 +130,57 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
   function defaultTemplateRenderer(inps) {
     return renderTemplate(defaultTemplateRenderer_OBJs, inps, {});
   }
-  function reshapeToInps(PST) {
-    let inputs = {};
-    for (let i = 0; i < PST.length; i++) {
-      console.log(PST[i]);
+  function singleReshape(stat, sessionContext = {}) {
+    if (Object.keys(sessionContext).length == 0) {
+      sessionContext = {
+        ACTIONS: {
+          started: false,
+          ended: false,
+          found: null,
+        },
+      };
     }
+    // console.log(stat.type);
+    switch (stat.type) {
+      case "ArtificialHeader":
+        if (stat.statements.prams.gate === "opening") {
+          sessionContext.ACTIONS.started = true;
+          console.log(stat);
+        }
+        break;
+
+      default:
+        break;
+    }
+  }
+  function reshapeToInps(PST) {
+    let sessionContext = {};
+    let inputs = {
+      ACTIONS: [],
+      PROPS: [],
+      USED_PROPS: [],
+      USED_ACTIONS: [],
+      defaultGredientMap: [],
+      stayTimeInit: [],
+      stayTimeEnd: [],
+      lerpTime: [],
+      backgroundColor: [],
+      usedProps: [],
+      usedActions: [],
+      errorsLOGS: [],
+    };
+    for (let i = 0; i < PST.length; i++) {
+      // console.log(PST[i]);
+      let r = singleReshape(PST[i], sessionContext) || [];
+      for (let j = 0; j < r.length; j++) {
+        inputs[r[j].type || "errorsLOGS"].push(
+          r[j].data ||
+            "undefined data from result of PST translation" + i + ":" + j
+        );
+        sessionContext = r[j].sessionContext;
+      }
+    }
+    return inputs;
   }
   //PST = Post semantic tree
   function transpile(PST) {
