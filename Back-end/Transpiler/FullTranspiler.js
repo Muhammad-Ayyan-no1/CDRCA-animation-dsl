@@ -80,15 +80,80 @@ let OAS_OBJ = {
 // push to the anim (renderer) pipeline
 currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);
   */
+
+  function general3DastToSTRplaceholder(placeholder, stringifyFN) {
+    if (typeof stringifyFN !== "function") {
+      stringifyFN = function (placeholder, x, y, z) {
+        return placeholder[x][y][z].value + "\n\n";
+      };
+    }
+
+    if (!placeholder)
+      return "/*Placeholder was invelid during transpilation (CDRCA full transpiler -> general 3d ast for placeholders module*/";
+    // console.log(placeholder[1][0][0].value);
+    // 3 - d loop
+    let str = "";
+    for (let x = 0; x < placeholder.length; x++) {
+      for (let y = 0; y < placeholder[x].length; y++) {
+        for (let z = 0; z < placeholder[x][y].length; z++) {
+          str += stringifyFN(placeholder, x, y, z);
+        }
+      }
+    }
+    // console.log(str);
+    return str;
+  }
+
+  // by    gpt 4o, i tested it it works
+  function FNfactory(defaultParamsMap, fn, rejectionType, removeDefPram) {
+    const defaultIndices = defaultParamsMap
+      .map((val, idx) => (val !== rejectionType ? idx : -1))
+      .filter((idx) => idx !== -1);
+
+    const requiredIndices = defaultParamsMap
+      .map((val, idx) => (val === rejectionType ? idx : -1))
+      .filter((idx) => idx !== -1);
+
+    return function (...inputArgs) {
+      const finalArgs = [];
+
+      let inputIdx = 0;
+
+      for (let i = 0; i < defaultParamsMap.length; i++) {
+        if (defaultParamsMap[i] === rejectionType) {
+          if (inputArgs[inputIdx] === undefined) {
+            throw new Error(`Missing required argument at position ${i}`);
+          }
+          finalArgs[i] = inputArgs[inputIdx];
+          inputIdx++;
+        } else {
+          // default value
+          finalArgs[i] = defaultParamsMap[i];
+          if (!removeDefPram) {
+            // Only consume arg if we are not removing default params
+            if (inputArgs[inputIdx] !== undefined) {
+              finalArgs[i] = inputArgs[inputIdx];
+            }
+            inputIdx++;
+          }
+        }
+      }
+
+      return fn(...finalArgs);
+    };
+  }
+
   let defaultTemplateRenderer_OBJs = [
     {
-      placeholder: ["ACTIONS", "PROPS", "USED_PROPS", "USED_ACTIONS"],
+      placeholder: ["ACTION_DEF", "PROP_DEF", "PROP_USE", "ACTION_USE"],
+      toString: general3DastToSTRplaceholder,
     },
     {
       str: "let defaultGredientMap = [",
     },
     {
       placeholder: ["defaultGredientMap"],
+      toString: general3DastToSTRplaceholder,
     },
     {
       str: `]
@@ -103,19 +168,31 @@ let OAS_OBJ = {
         "lerpTime",
         "backgroundColor",
       ],
+      toString: general3DastToSTRplaceholder,
     },
     {
       str: "PropsDef: [",
     },
     {
-      placeholder: ["usedProps"],
+      placeholder: ["prop_use"],
+      toString: general3DastToSTRplaceholder,
     },
     {
       str: `  ],
       actions: [`,
     },
     {
-      placeholder: ["usedActions"],
+      placeholder: ["action_use"],
+      toString: FNfactory(
+        [
+          0,
+          function (p) {
+            console.log(p);
+          },
+        ],
+        general3DastToSTRplaceholder,
+        0
+      ),
     },
     {
       str: `],
@@ -130,10 +207,46 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
   function defaultTemplateRenderer(inps) {
     return renderTemplate(defaultTemplateRenderer_OBJs, inps, {});
   }
+  function singleArtificialHeaderReshaper(stat, sessionContext) {
+    let aht = stat.statements.prams.ArtificialHeader_TYPE;
+    if (!aht) return { sessionContext: sessionContext };
+    if (stat.statements.prams.gate === "opening") {
+      switch (aht) {
+        case "PROP_DEF":
+        case "ACTION_DEF":
+          sessionContext[aht].started = true;
+          break;
+        default:
+          break;
+      }
+      // Always return updated sessionContext
+      return { sessionContext: sessionContext };
+    } else if (stat.statements.prams.gate === "closing") {
+      switch (aht) {
+        case "PROP_DEF":
+        case "ACTION_DEF":
+          sessionContext[aht].ended = true;
+          break;
+        default:
+          break;
+      }
+      return { sessionContext: sessionContext };
+    } else {
+      console.warn(
+        " UNKNOWN Artificial Header, some bug in core transpiler Or plugins"
+      );
+      return { sessionContext: sessionContext };
+    }
+  }
   function singleReshape(stat, sessionContext = {}) {
     if (Object.keys(sessionContext).length == 0) {
       sessionContext = {
-        ACTIONS: {
+        ACTION_DEF: {
+          started: false,
+          ended: false,
+          found: null,
+        },
+        PROP_DEF: {
           started: false,
           ended: false,
           found: null,
@@ -143,12 +256,58 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
     // console.log(stat.type);
     switch (stat.type) {
       case "ArtificialHeader":
-        if (stat.statements.prams.gate === "opening") {
-          sessionContext.ACTIONS.started = true;
-          console.log(stat);
+        // Always update sessionContext
+        const reshaperResult = singleArtificialHeaderReshaper(
+          stat,
+          sessionContext
+        );
+        sessionContext = reshaperResult.sessionContext;
+        return [{ sessionContext: sessionContext, ignorePUSH: true }];
+
+      // statments for hoisting
+      case "ACTION_DEF":
+      case "PROP_DEF":
+        if (
+          !(
+            sessionContext[stat.type].started &&
+            !sessionContext[stat.type].ended
+          )
+        ) {
+          console.log(
+            "bug in hoisting eaither core post semantic analyizer OR some plugin",
+            sessionContext,
+            stat
+          );
         }
+        return [
+          {
+            type: stat.type,
+            data: stat,
+            sessionContext: sessionContext,
+          },
+        ];
+
+        // console.log(stat);
         break;
 
+      // statments with conservation of order
+      // mainly the used and USED types (define use / register use)
+      case "ACTION_USE":
+      case "PROP_USE":
+        // console.log(stat);
+        return [
+          {
+            type: stat.type,
+            data: stat,
+            sessionContext: sessionContext,
+          },
+          {
+            type: String(stat.type).toLowerCase(),
+            data: stat,
+            sessionContext: sessionContext,
+          },
+        ];
+        break;
       default:
         break;
     }
@@ -156,35 +315,57 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
   function reshapeToInps(PST) {
     let sessionContext = {};
     let inputs = {
-      ACTIONS: [],
-      PROPS: [],
-      USED_PROPS: [],
-      USED_ACTIONS: [],
+      // defs
+      ACTION_DEF: [],
+      PROP_DEF: [],
+      // used (define use)
+      PROP_USE: [],
+      ACTION_USE: [],
+      // defaults
       defaultGredientMap: [],
       stayTimeInit: [],
       stayTimeEnd: [],
       lerpTime: [],
       backgroundColor: [],
-      usedProps: [],
-      usedActions: [],
+      // used (register use)
+      prop_use: [],
+      action_use: [],
+      // system, logs
       errorsLOGS: [],
     };
     for (let i = 0; i < PST.length; i++) {
       // console.log(PST[i]);
       let r = singleReshape(PST[i], sessionContext) || [];
       for (let j = 0; j < r.length; j++) {
-        inputs[r[j].type || "errorsLOGS"].push(
-          r[j].data ||
-            "undefined data from result of PST translation" + i + ":" + j
-        );
+        if (!r[j].ignorePUSH) {
+          inputs[r[j].type || "errorsLOGS"].push(
+            r[j].data ||
+              "undefined data from result of PST translation" + i + ":" + j
+          );
+        }
+
         sessionContext = r[j].sessionContext;
       }
     }
     return inputs;
   }
+  // contains hardcoded logic
+  function chunkInps(input) {
+    return {
+      [JSON.stringify(["ACTION_DEF", "PROP_DEF", "PROP_USE", "ACTION_USE"])]: [
+        [input.ACTION_DEF],
+        [input.PROP_DEF],
+        [input.PROP_USE],
+        [input.ACTION_USE],
+      ],
+      ...input,
+    };
+  }
   //PST = Post semantic tree
   function transpile(PST) {
     let inps = reshapeToInps(PST) || {};
+    // console.log(inps);
+    inps = chunkInps(inps);
     let r = defaultTemplateRenderer(inps);
     return r || "PST err";
   }
