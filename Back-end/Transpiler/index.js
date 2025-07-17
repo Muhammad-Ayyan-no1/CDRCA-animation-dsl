@@ -59,11 +59,18 @@ console.log(
 !--- PROP ABC :: comment ---
 :: SUB HEADER ::
 use MyProp(params) as Alias
-add new action abc STAY_TIME LERP_TIME
+add new action abc STAY_TIME LERP_TIME MyActionInstance
 :: END
 def PROP MyProp {
  console.log("hello world");
   }
+!---END---
+!--- PROP ABC :: mysecond header ---
+// the Myprop from scene one is used here
+:: SUB HEADER ::
+use MyProp(params) as Alias2
+add new action ABC STAY_TIME LERP_TIME
+:: END
 !---END---
 `,
     {

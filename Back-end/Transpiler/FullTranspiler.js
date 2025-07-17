@@ -142,26 +142,7 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);
       return fn(...finalArgs);
     };
   }
-
-  let defaultTemplateRenderer_OBJs = [
-    {
-      placeholder: ["ACTION_DEF", "PROP_DEF", "PROP_USE", "ACTION_USE"],
-      toString: general3DastToSTRplaceholder,
-    },
-
-    {
-      str: "let defaultGredientMap = [",
-    },
-    {
-      placeholder: ["defaultGredientMap"],
-      toString: general3DastToSTRplaceholder,
-    },
-    {
-      str: `]
-let OAS_OBJ = {
-  defaultGredientMap: defaultGredientMap[0],
-  scenes: [ {`,
-    },
+  let defaultSceneTemplate = [
     {
       placeholder: [
         "stayTimeInit",
@@ -206,8 +187,43 @@ let OAS_OBJ = {
         true
       ),
     },
+  ];
+  let defaultTemplateRenderer_OBJs = [
     {
-      str: `], }, ],
+      placeholder: ["ACTION_DEF", "PROP_DEF", "PROP_USE", "ACTION_USE"],
+      toString: general3DastToSTRplaceholder,
+    },
+
+    {
+      str: "let defaultGredientMap = [",
+    },
+    {
+      placeholder: ["defaultGredientMap"],
+      toString: general3DastToSTRplaceholder,
+    },
+    {
+      str: `]
+let OAS_OBJ = {
+  defaultGredientMap: defaultGredientMap[0],
+  scenes: [ `,
+    },
+
+    {
+      placeholder: ["scenes"],
+      toString: function (d) {
+        d = d;
+        console.log(d);
+        let scenes = [];
+        for (let i = 0; i < d.length; i++) {
+          console.log(JSON.stringify(d[i], null, 2));
+          scenes.push(renderTemplate(defaultSceneTemplate, chunkInps(d[i])));
+          // console.log(d[i]);
+        }
+        console.log(scenes);
+      },
+    },
+    {
+      str: ` ],
     };
   
 // push to the anim (renderer) pipeline
@@ -251,20 +267,58 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
   function singleReshape(stat, sessionContext = {}) {
     if (Object.keys(sessionContext).length == 0) {
       sessionContext = {
+        // these need to be hoisted so we need to track them
         ACTION_DEF: {
           started: false,
           ended: false,
-          found: null,
         },
         PROP_DEF: {
           started: false,
           ended: false,
-          found: null,
+        },
+
+        // header / scene system
+        Header: {
+          lastGate: null,
+        },
+
+        Scene: {
+          newSceneLastTime: false,
         },
       };
     }
     // console.log(stat.type);
     switch (stat.type) {
+      case "Header":
+        // console.log(stat.prams);
+        // what we need to do is check if last time header was closed and this time opened then we just say a new scene started
+        if (!sessionContext.Header.lastGate) {
+          sessionContext.Header.lastGate = stat.prams.gate;
+          return [{ sessionContext: sessionContext, ignorePUSH: true }];
+        }
+        if (
+          sessionContext.Header.lastGate === "closing" &&
+          stat.prams.gate === "opening" &&
+          !sessionContext.Scene.newSceneLastTime // this is only to prevent spamming like if subheader and header closes at same time etc
+        ) {
+          // console.log("newScene");
+          sessionContext.Scene.newSceneLastTime = true;
+          sessionContext.Header.lastGate = stat.prams.gate;
+          return [
+            {
+              sessionContext: sessionContext,
+              type: "scene",
+              data: {
+                scene: "new",
+                header: stat,
+                derivedFromHeader: true,
+              },
+            },
+          ];
+        }
+        sessionContext.Scene.newSceneLastTime = false;
+        sessionContext.Header.lastGate = stat.prams.gate;
+        break;
       case "ArtificialHeader":
         // Always update sessionContext
         const reshaperResult = singleArtificialHeaderReshaper(
@@ -349,10 +403,21 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
       action_use: [],
       // system, logs
       errorsLOGS: [],
+      scenes: [],
     };
+
+    let scenesSpecificInputs = [
+      "prop_use",
+      "action_use",
+      "stayTimeInit",
+      "stayTimeEnd",
+      "lerpTime",
+      "backgroundColor",
+    ];
+
     for (let i = 0; i < PST.length; i++) {
-      // console.log(PST[i]);
       let r = singleReshape(PST[i], sessionContext) || [];
+
       for (let j = 0; j < r.length; j++) {
         if (!r[j].ignorePUSH && Boolean(inputs[r[j].type || "errorsLOGS"])) {
           inputs[r[j].type || "errorsLOGS"].push(
@@ -362,8 +427,19 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
         }
 
         sessionContext = r[j].sessionContext;
+
+        if (r[j].type === "scene" && r[j].data && r[j].data.scene === "new") {
+          inputs.scenes.push({});
+          for (let k = 0; k < scenesSpecificInputs.length; k++) {
+            inputs.scenes[inputs.scenes.length - 1][scenesSpecificInputs[k]] =
+              JSON.parse(JSON.stringify(inputs[scenesSpecificInputs[k]]));
+            inputs[scenesSpecificInputs[k]] = [];
+          }
+        }
       }
     }
+
+    // console.log("Final inputs.scenes:", inputs.scenes);
     return inputs;
   }
   // contains hardcoded logic TODO generlize stuff so its easier for future PLUGINS system or something

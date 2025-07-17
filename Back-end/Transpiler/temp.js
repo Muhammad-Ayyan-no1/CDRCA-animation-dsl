@@ -6,16 +6,24 @@ class MyProp extends mixClasses([
 
 const Alias = new MyProp(params);
 
-let abc_Use21028708049871203 = {
+const Alias2 = new MyProp(params);
+
+let abc_Use8802613696905612 = {
   stayTime: STAY_TIME,
   lerpTime: LERP_TIME,
   action: abc,
 };
 
+let ABC_Use42528174847207834 = {
+  stayTime: STAY_TIME,
+  lerpTime: LERP_TIME,
+  action: ABC,
+};
+
 let defaultGredientMap = [];
 let OAS_OBJ = {
   defaultGredientMap: defaultGredientMap[0],
-  scenes: [{ PropsDef: [Alias], actions: [abc_Use21028708049871203] }],
+  scenes: [],
 };
 
 // push to the anim (renderer) pipeline
