@@ -104,7 +104,7 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);
     return str;
   }
 
-  // by    gpt 4o, i tested it it works
+  // by    gpt 4o
   function FNfactory(defaultParamsMap, fn, rejectionType, removeDefPram) {
     const defaultIndices = defaultParamsMap
       .map((val, idx) => (val !== rejectionType ? idx : -1))
@@ -148,6 +148,7 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);
       placeholder: ["ACTION_DEF", "PROP_DEF", "PROP_USE", "ACTION_USE"],
       toString: general3DastToSTRplaceholder,
     },
+
     {
       str: "let defaultGredientMap = [",
     },
@@ -159,7 +160,7 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);
       str: `]
 let OAS_OBJ = {
   defaultGredientMap: defaultGredientMap[0],
-  scenes: [`,
+  scenes: [ {`,
     },
     {
       placeholder: [
@@ -175,7 +176,17 @@ let OAS_OBJ = {
     },
     {
       placeholder: ["prop_use"],
-      toString: general3DastToSTRplaceholder,
+      toString: FNfactory(
+        [
+          0,
+          function (p, x, y, z) {
+            return p[x][y][z].usageValue;
+          },
+        ],
+        general3DastToSTRplaceholder,
+        0,
+        true
+      ),
     },
     {
       str: `  ],
@@ -186,20 +197,19 @@ let OAS_OBJ = {
       toString: FNfactory(
         [
           0,
-          function (p) {
-            console.log(p);
+          function (p, x, y, z) {
+            return p[x][y][z].usageValue;
           },
         ],
         general3DastToSTRplaceholder,
-        0
+        0,
+        true
       ),
     },
     {
-      str: `],
-    },
-  ],
-}
-
+      str: `], }, ],
+    };
+  
 // push to the anim (renderer) pipeline
 currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
     },
@@ -309,6 +319,13 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
         ];
         break;
       default:
+        return [
+          {
+            type: stat.type,
+            data: stat,
+            sessionContext: sessionContext,
+          },
+        ];
         break;
     }
   }
@@ -337,7 +354,7 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
       // console.log(PST[i]);
       let r = singleReshape(PST[i], sessionContext) || [];
       for (let j = 0; j < r.length; j++) {
-        if (!r[j].ignorePUSH) {
+        if (!r[j].ignorePUSH && Boolean(inputs[r[j].type || "errorsLOGS"])) {
           inputs[r[j].type || "errorsLOGS"].push(
             r[j].data ||
               "undefined data from result of PST translation" + i + ":" + j
@@ -349,15 +366,20 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
     }
     return inputs;
   }
-  // contains hardcoded logic
+  // contains hardcoded logic TODO generlize stuff so its easier for future PLUGINS system or something
   function chunkInps(input) {
+    const placeholderArrays = defaultTemplateRenderer_OBJs
+      .filter((obj) => Array.isArray(obj.placeholder))
+      .map((obj) => obj.placeholder);
+    // .filter((arr) => arr.length > 1);
+    const grouped = {};
+    for (const arr of placeholderArrays) {
+      const key = JSON.stringify(arr);
+      grouped[key] = arr.map((name) => [input[name]]);
+    }
+
     return {
-      [JSON.stringify(["ACTION_DEF", "PROP_DEF", "PROP_USE", "ACTION_USE"])]: [
-        [input.ACTION_DEF],
-        [input.PROP_DEF],
-        [input.PROP_USE],
-        [input.ACTION_USE],
-      ],
+      ...grouped,
       ...input,
     };
   }

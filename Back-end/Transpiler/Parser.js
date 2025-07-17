@@ -458,9 +458,20 @@ const parserConstructor = function (defaultTokenizer) {
         throw new Error("Expected lerp time in action use");
       const lerpTime = tokens[pos].value;
       pos++;
+      let actionUseName;
+      if (pos >= tokens.length || tokens[pos].value === "\n") {
+        // throw new Error("Expected lerp time in action use");
+        console.info("action use name not found, defaulting");
+        actionUseName =
+          actionName + "_Use" + String(Math.random()).replace("0.", "");
+      } else {
+        actionUseName = tokens[pos].value;
+      }
+
+      pos++;
       return {
         type: "ACTION_USE",
-        prams: { actionName, stayTime, lerpTime },
+        prams: { actionUseName, actionName, stayTime, lerpTime },
         newPosition: pos,
       };
     }

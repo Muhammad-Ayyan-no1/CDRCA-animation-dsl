@@ -101,11 +101,13 @@ ${statment.prams.code}
     return fn;
   }
   function createPropUSE(statement) {
-    if (statement.prams.as) {
-      return `const ${statement.prams.as} = ${statement.prams.name}(${statement.prams.prams});`;
-    } else {
-      return `${statement.prams.name}(${statement.prams.prams});`;
-    }
+    // bellow is commented condition because theres no reason to check .as   its randomly generated else wise
+
+    // if (statement.prams.as) {
+    return `const ${statement.prams.as} = new ${statement.prams.name}(${statement.prams.prams});`;
+    // } else {
+    //   return `${statement.prams.name}(${statement.prams.prams});`;
+    // }
   }
   function transpileStatement(statement) {
     switch (statement.type) {
@@ -167,17 +169,19 @@ ${statment.prams.code}
         return {
           statement: statement,
           value: createPropUSE(statement),
+          usageValue: `${statement.prams.as},`,
           type: "PROP_USE",
         };
       // THE OBJ STACK used stuff
       case "ACTION_USE":
         return {
           statement: statement,
-          value: `{
+          value: `let ${statement.prams.actionUseName} = {
         stayTime : ${statement.prams.stayTime},
         lerpTime : ${statement.prams.lerpTime},
         action : ${statement.prams.actionName}
-        },`,
+        }`,
+          usageValue: `${statement.prams.actionUseName},`,
           type: "ACTION_USE",
         };
 
