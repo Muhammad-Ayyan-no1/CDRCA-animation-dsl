@@ -245,6 +245,9 @@ function create() {
     } else if (statment.type && statment.prams) {
       type = statment.type;
       prams = statment.prams;
+    } else if (statment.type && statment.value) {
+      type = statment.type;
+      prams = {};
     } else {
       console.log("unknown statment structure", statment);
       return [
@@ -253,6 +256,9 @@ function create() {
     }
 
     switch (type) {
+      case "JS_BLOCK":
+        return [`// Javascript in an IIFE`];
+        break;
       case "IMPORT":
         return [`//here we import (hoisted type) from ${prams.path}`];
         break;
@@ -272,8 +278,8 @@ function create() {
           `// it will call all props to perform actions it includes ${(() => {
             let str = "";
             for (let i = 0; i < prams.parts.length; i++) {
-              let prop = parts.propName;
-              let action = parts.methodName;
+              let prop = prams.parts.propName;
+              let action = prams.parts.methodName;
               str += `${action} from ${prop}`;
               if (i % 5 == 0 && i !== prams.parts.length - 2) {
                 str += "\n //";

@@ -73,8 +73,8 @@ ${statment.prams.code}
     }(PropsARR,preFN,postFN, btweenFNpre, btweenFNpost){
     const inpPrams = [PropsARR,preFN,postFN, btweenFNpre, btweenFNpost]
     preFN(inpPrams);
-    let prop;
-    let prams = [];
+    var prop;
+    var prams = [];
     ${(function () {
       let r = "";
       for (let i = 0; i < statment.prams.parts.length; i++) {
@@ -88,10 +88,10 @@ ${statment.prams.code}
           PROPStoIndex_MAP[part.propName]
         )}, ${JSON.stringify(part.propName)}, ${JSON.stringify(
           part.methodName
-        )}, prop, ${JSON.stringify(prams)}];
+        )}, prop, ${JSON.stringify(statment.prams.prams)}];
 
         btweenFNpre(prams);
-        prop.${part.methodName}(${prams});
+        prop.${part.methodName}(${statment.prams.prams});
         btweenFNpost(prams);
       }`;
       }
@@ -104,7 +104,7 @@ ${statment.prams.code}
     // bellow is commented condition because theres no reason to check .as   its randomly generated else wise
 
     // if (statement.prams.as) {
-    return `const ${statement.prams.as} = new ${statement.prams.name}(${statement.prams.prams});`;
+    return `var ${statement.prams.as} = new ${statement.prams.name}(${statement.prams.prams});`;
     // } else {
     //   return `${statement.prams.name}(${statement.prams.prams});`;
     // }
@@ -176,7 +176,7 @@ ${statment.prams.code}
       case "ACTION_USE":
         return {
           statement: statement,
-          value: `let ${statement.prams.actionUseName} = {
+          value: `var ${statement.prams.actionUseName} = {
         stayTime : ${statement.prams.stayTime},
         lerpTime : ${statement.prams.lerpTime},
         action : ${statement.prams.actionName}

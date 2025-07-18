@@ -54,23 +54,22 @@ function main(cdrcaCode, options) {
 // console.log(JSON.stringify(Parttranspiled, null, 2));
 
 console.log(
+  "\n\n result \n\n",
   main(
     `
 !--- PROP ABC :: comment ---
-:: SUB HEADER ::
+
 use MyProp(params) as Alias
 add new action abc STAY_TIME LERP_TIME MyActionInstance
-:: END
+
 def PROP MyProp {
- console.log("hello world");
+ //console.log("hello world");
   }
-!---END---
-!--- PROP ABC :: mysecond header ---
-// the Myprop from scene one is used here
-:: SUB HEADER ::
-use MyProp(params) as Alias2
-add new action ABC STAY_TIME LERP_TIME
-:: END
+ JS { let myJS = "" }
+ def ACTION ACTION_NAME PROP_NAME METHOD_NAME PARAMS
+ gredientMap = "value"  
+ BGcolor = "color"
+
 !---END---
 `,
     {

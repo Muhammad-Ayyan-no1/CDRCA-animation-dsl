@@ -187,6 +187,9 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);
         true
       ),
     },
+    {
+      str: "]",
+    },
   ];
   let defaultTemplateRenderer_OBJs = [
     {
@@ -195,7 +198,7 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);
     },
 
     {
-      str: "let defaultGredientMap = [",
+      str: "var defaultGredientMap = [",
     },
     {
       placeholder: ["defaultGredientMap"],
@@ -203,24 +206,14 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);
     },
     {
       str: `]
-let OAS_OBJ = {
+var OAS_OBJ = {
   defaultGredientMap: defaultGredientMap[0],
   scenes: [ `,
     },
 
     {
       placeholder: ["scenes"],
-      toString: function (d) {
-        d = d;
-        console.log(d);
-        let scenes = [];
-        for (let i = 0; i < d.length; i++) {
-          console.log(JSON.stringify(d[i], null, 2));
-          scenes.push(renderTemplate(defaultSceneTemplate, chunkInps(d[i])));
-          // console.log(d[i]);
-        }
-        console.log(scenes);
-      },
+      toString: transpileScenes,
     },
     {
       str: ` ],
@@ -245,7 +238,6 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
         default:
           break;
       }
-      // Always return updated sessionContext
       return { sessionContext: sessionContext };
     } else if (stat.statements.prams.gate === "closing") {
       switch (aht) {
@@ -291,9 +283,10 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
     switch (stat.type) {
       case "Header":
         // console.log(stat.prams);
-        // what we need to do is check if last time header was closed and this time opened then we just say a new scene started
+        // what we need to do is check if last time header was closed and this time opened then we just register a new scene started
         if (!sessionContext.Header.lastGate) {
           sessionContext.Header.lastGate = stat.prams.gate;
+          // sessionContext.Header.lastGate = "closing";
           return [{ sessionContext: sessionContext, ignorePUSH: true }];
         }
         if (
@@ -422,7 +415,7 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
         if (!r[j].ignorePUSH && Boolean(inputs[r[j].type || "errorsLOGS"])) {
           inputs[r[j].type || "errorsLOGS"].push(
             r[j].data ||
-              "undefined data from result of PST translation" + i + ":" + j
+              "undefined data from result of PST translation " + i + ":" + j
           );
         }
 
@@ -438,13 +431,27 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
         }
       }
     }
+    if (sessionContext.Scene.newSceneLastTime) return inputs;
 
-    // console.log("Final inputs.scenes:", inputs.scenes);
+    // remaining unpushed data is added as final scene
+    let hasLeftoverSceneData = scenesSpecificInputs.some(
+      (key) => inputs[key].length > 0
+    );
+    if (hasLeftoverSceneData) {
+      let finalScene = {};
+      for (let k = 0; k < scenesSpecificInputs.length; k++) {
+        finalScene[scenesSpecificInputs[k]] = inputs[scenesSpecificInputs[k]];
+        inputs[scenesSpecificInputs[k]] = [];
+      }
+      inputs.scenes.push(finalScene);
+    }
+
     return inputs;
   }
+
   // contains hardcoded logic TODO generlize stuff so its easier for future PLUGINS system or something
-  function chunkInps(input) {
-    const placeholderArrays = defaultTemplateRenderer_OBJs
+  function chunkInps(input, template = defaultTemplateRenderer_OBJs) {
+    const placeholderArrays = template
       .filter((obj) => Array.isArray(obj.placeholder))
       .map((obj) => obj.placeholder);
     // .filter((arr) => arr.length > 1);
@@ -458,6 +465,20 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
       ...grouped,
       ...input,
     };
+  }
+  function transpileScenes(scenes) {
+    let STRscenes = [];
+    scenes = scenes.flat(Infinity);
+    // console.log(JSON.stringify(scenes, null, 2));
+    for (let i = 0; i < scenes.length; i++) {
+      // console.log(scenes[i]);
+      let input = scenes[i];
+      input = chunkInps(input, defaultSceneTemplate);
+      // console.log(input);
+      let str = renderTemplate(defaultSceneTemplate, input);
+      STRscenes.push(`{${str}}`);
+    }
+    return STRscenes.join(", \n\n");
   }
   //PST = Post semantic tree
   function transpile(PST) {

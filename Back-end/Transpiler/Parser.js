@@ -18,7 +18,7 @@ const parserConstructor = function (defaultTokenizer) {
    * - Prop Use: use PROP_NAME(params) as ALIAS
    * - Action Definition: def ACTION ACTION_NAME PROP_NAME METHOD_NAME PARAMS [ PROP_NAME METHOD_NAME PARAMS ... ]    [] part is optional
    * - Action Use: add new actionName STAY_TIME LERP_TIME
-   * - Defaults: gredientMap :: value  /  BGcolor :: color
+   * - Defaults: gredientMap = value  /  BGcolor = color
    * - Comments: // Comment text
    *
    * EXAMPLE:
@@ -479,8 +479,8 @@ const parserConstructor = function (defaultTokenizer) {
     function parseDefault(tokens, pos, type) {
       const keyword = tokens[pos].value;
       pos++;
-      if (pos >= tokens.length || tokens[pos].value !== "::")
-        throw new Error(`Expected '::' after ${keyword}`);
+      if (pos >= tokens.length || tokens[pos].value !== "=")
+        throw new Error(`Expected '=' after ${keyword}`);
       pos++;
       const valueTokens = [];
       while (pos < tokens.length && tokens[pos].type !== "newline") {

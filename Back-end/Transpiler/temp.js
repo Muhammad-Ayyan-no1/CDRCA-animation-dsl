@@ -1,29 +1,48 @@
+function ACTION_ACTION_NAME(
+  PropsARR,
+  preFN,
+  postFN,
+  btweenFNpre,
+  btweenFNpost
+) {
+  const inpPrams = [PropsARR, preFN, postFN, btweenFNpre, btweenFNpost];
+  preFN(inpPrams);
+  var prop;
+  var prams = [];
+
+  ((prop = PropsARR[Number(undefined) || 0]),
+    (prams = [
+      inpPrams,
+      0,
+      undefined,
+      "PROP_NAME",
+      "METHOD_NAME",
+      prop,
+      undefined,
+    ]));
+
+  btweenFNpre(prams);
+  prop.METHOD_NAME(undefined);
+  btweenFNpost(prams);
+}
+postFN(inpPrams);
+
 class MyProp extends mixClasses([
   ObjectAnimationSystem_INS.CORE_3d_PROPSsceneSYS.Prop,
-]) {
-  // console.log("hello world");
-}
+]) {}
 
-const Alias = new MyProp(params);
+var Alias = new MyProp(params);
 
-const Alias2 = new MyProp(params);
-
-let abc_Use8802613696905612 = {
+var MyActionInstance = {
   stayTime: STAY_TIME,
   lerpTime: LERP_TIME,
   action: abc,
 };
 
-let ABC_Use42528174847207834 = {
-  stayTime: STAY_TIME,
-  lerpTime: LERP_TIME,
-  action: ABC,
-};
-
-let defaultGredientMap = [];
-let OAS_OBJ = {
+var defaultGredientMap = [];
+var OAS_OBJ = {
   defaultGredientMap: defaultGredientMap[0],
-  scenes: [],
+  scenes: [{ PropsDef: [Alias], actions: [MyActionInstance] }],
 };
 
 // push to the anim (renderer) pipeline
