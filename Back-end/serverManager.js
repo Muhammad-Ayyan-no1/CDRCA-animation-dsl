@@ -1,1 +1,1 @@
-module.exports.main = require("./mainServer");
+module.exports.main = require("./Servers/main");
