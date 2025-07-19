@@ -260,10 +260,10 @@ function create() {
         return [`// Javascript in an IIFE`];
         break;
       case "IMPORT":
-        return [`//here we import (hoisted type) from ${prams.path}`];
+        return [`//here we have the module at top from ${prams.path}`];
         break;
       case "ADD_IMPORT":
-        return [`//here we import (exact line paste type) from ${prams.path}`];
+        return [`//here we have a module (code) from ${prams.path}`];
         break;
       case "JS_BLOCK":
         return [`// an embeeded js code ${/*prams.code*/ ""}`];

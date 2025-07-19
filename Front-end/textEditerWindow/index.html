@@ -63,7 +63,24 @@
     <div id="toast" class="toast"></div>
     <script src="./monaco/package/dev/vs/loader.js"></script>
     <script>
-      let fileSystem = { "src": { "main.js": "// main.js\nconsole.log('Hello');", "utils": { "helper.js": "// helper.js\nfunction help() {}" } }, "README.md": "# Project README" };
+      // let fileSystem = { "src": { "main.js": "// main.js\nconsole.log('Hello');", "utils": { "helper.js": "// helper.js\nfunction help() {}" } }, "README.md": "# Project README" };
+      let fileSystem = {
+        "index.cdrca" : `
+!--- PROP ABC :: comment ---
+
+use MyProp(params) as Alias
+add new action abc STAY_TIME LERP_TIME MyActionInstance
+
+def PROP MyProp {
+ //console.log("hello world");
+  }
+ def ACTION ACTION_NAME PROP_NAME METHOD_NAME PARAMS
+ gredientMap = "value"  
+ BGcolor = "color"
+
+!---END---
+        `
+      }
       let commits = [];
       let openTabs = [];
       let activeTab = null;

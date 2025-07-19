@@ -11,11 +11,86 @@ let postSemanticAnalyizer_INS = postSemanticAnalyzier.create();
 let fullTranspiler_INS = fullTranspiler.create();
 let postOptionalParser_INS = postOptionalParser.create();
 
-function main(cdrcaCode, options) {
+// uses basic but linux type paths  idk if windows dont have ~ etc
+function getVFScontentUnitpath(vfs, path) {
+  if (typeof path !== "string") {
+    throw new Error("Path must be a string");
+  }
+
+  let parts = path.trim().split("/");
+
+  let stack = [];
+
+  if (path.startsWith("/") || path.startsWith("~") || path.startsWith("./")) {
+    stack = [];
+  }
+
+  for (let part of parts) {
+    if (part === "" || part === "." || part === "~") {
+      continue;
+    } else if (part === "..") {
+      if (stack.length > 0) {
+        stack.pop();
+      }
+    } else {
+      stack.push(part);
+    }
+  }
+
+  let current = vfs;
+  for (let segment of stack) {
+    if (typeof current !== "object" || !(segment in current)) {
+      throw new Error(`Path not found: ${path}`);
+    }
+    current = current[segment];
+  }
+
+  return current;
+}
+
+function getVFScontent(vfs, path) {
+  if (!Array.isArray(path)) {
+    return getVFScontentUnitpath(vfs, String(path));
+  }
+  let r;
+  for (let i = 0; i < path.length; i++) {
+    try {
+      r = getVFScontentUnitpath(vfs, String(path[i]));
+      break;
+    } catch (error) {
+      continue;
+    }
+  }
+  return r;
+}
+
+//VFS = virtual file system
+function mainMultiFile(
+  VFS,
+  options = {},
+  mainPath = ["index.cdrca", "main.cdrca"]
+) {
+  let mainFile = getVFScontent(VFS, mainPath);
+  let transpiled = mainUniFile(mainFile, {
+    VFS: {
+      ...VFS,
+      ...(options.VFS || {}),
+    },
+    ...(options || {}),
+  });
+  return transpiled;
+}
+
+function mainUniFile(cdrcaCode, options) {
   // tokenization to parsing
   let ast = parser_INS.parse(cdrcaCode);
   // parses induvidual statments and chunks
-  let partialTranspiled = partial_transpiler_INS.transpile(ast);
+  let partialTranspiled = partial_transpiler_INS.transpile(
+    ast,
+    options,
+    mainUniFile,
+    mainMultiFile
+  );
   // orders those chunks (hoists etc) and adds automatic comments (options)
   let postSemanticAnalyzed = postSemanticAnalyizer_INS.analyze(
     partialTranspiled,
@@ -55,8 +130,10 @@ function main(cdrcaCode, options) {
 
 console.log(
   "\n\n result \n\n",
-  main(
-    `
+  mainMultiFile(
+    {
+      "index.cdrca": `
+      @IMPORT ./a.cdrca
 !--- PROP ABC :: comment ---
 
 use MyProp(params) as Alias
@@ -65,13 +142,18 @@ add new action abc STAY_TIME LERP_TIME MyActionInstance
 def PROP MyProp {
  //console.log("hello world");
   }
- JS { let myJS = "" }
  def ACTION ACTION_NAME PROP_NAME METHOD_NAME PARAMS
  gredientMap = "value"  
  BGcolor = "color"
 
 !---END---
 `,
+      "a.cdrca": `
+JS {
+console.log("hello world");
+}
+`,
+    },
     {
       addComments: true,
     }
@@ -79,5 +161,5 @@ def PROP MyProp {
 );
 
 module.exports = {
-  transpile: main,
+  transpile: mainMultiFile,
 };

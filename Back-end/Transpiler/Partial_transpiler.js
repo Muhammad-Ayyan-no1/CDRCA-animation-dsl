@@ -109,25 +109,61 @@ ${statment.prams.code}
     //   return `${statement.prams.name}(${statement.prams.prams});`;
     // }
   }
-  function transpileStatement(statement) {
+  function ImportEmbeding(statement, options, mainMultiFile) {
+    console.warn("import system is not working  under dev");
+    // // handled by the post semantic analysis
+    // return {
+    //   statement: statement,
+    //   value: statement.prams.path,
+    //   type: "IMPORT",
+    // };
+    let embeded = mainMultiFile(options.VFS, options, statement.prams.path);
+    // console.log(embeded);
+    return {
+      value: embeded,
+      type: "IMPORT",
+      embeeding: true,
+      hoisted: {
+        hoist: true,
+        group: {
+          AND: [["IMPORT"]],
+          // OR: [],
+        },
+        target: { line: 1 },
+        upperPriority: {
+          AND: [["PROP_USE"]],
+          OR: [["PROP_USE"]],
+        },
+      },
+    };
+  }
+  function ADD_ImportEmbeding(statement, options, mainMultiFile) {
+    console.warn("import system is not working  under dev");
+    // handled by the post semantic analysis
+    // return {
+    //   statement: statement,
+    //   value: statement.prams.path,
+    //   type: "ADD_IMPORT",
+    // };
+    let embeded = mainMultiFile(options.VFS, options, statement.prams.path);
+    // console.log(embeded);
+    return {
+      value: embeded,
+      type: "IMPORT",
+      embeeding: true,
+    };
+  }
+  function transpileStatement(statement, options, mainUniFile, mainMultiFile) {
     switch (statement.type) {
       case "IMPORT":
-        // handled by the post semantic analysis
-        return {
-          statement: statement,
-          value: statement.prams.path,
-          type: "IMPORT",
-        };
+        return ImportEmbeding(statement, options, mainMultiFile);
+        break;
       case "ADD_IMPORT":
-        // handled by the post semantic analysis
-        return {
-          statement: statement,
-          value: statement.prams.path,
-          type: "ADD_IMPORT",
-        };
+        return ADD_ImportEmbeding(statement, options, mainMultiFile);
+        break;
       case "JS_BLOCK":
         return { value: `(()=>{${statement.prams.code}})()`, type: "JS_BLOCK" };
-
+        break;
       case "PROP_DEF":
         return {
           statement: statement,
@@ -146,6 +182,7 @@ ${statment.prams.code}
             },
           },
         };
+        break;
       case "ACTION_DEF":
         return {
           statement: statement,
@@ -164,7 +201,7 @@ ${statment.prams.code}
             },
           },
         };
-
+        break;
       case "PROP_USE":
         return {
           statement: statement,
@@ -172,6 +209,7 @@ ${statment.prams.code}
           usageValue: `${statement.prams.as},`,
           type: "PROP_USE",
         };
+        break;
       // THE OBJ STACK used stuff
       case "ACTION_USE":
         return {
@@ -184,7 +222,7 @@ ${statment.prams.code}
           usageValue: `${statement.prams.actionUseName},`,
           type: "ACTION_USE",
         };
-
+        break;
       case "GREDIENT_MAP":
         /*
 defaultGredientMap: new THREE.DataTexture(
@@ -207,25 +245,44 @@ defaultGredientMap: new THREE.DataTexture(
       ),`,
           type: "GREDIENT_MAP",
         };
+        break;
       case "BGCOLOR":
         return {
           statement: statement,
           value: `backgroundColor: ${statement.prams.value},`,
           type: "BGCOLOR",
         };
+        break;
       case "COMMENT":
         return {
           statement: statement,
           value: `// ${statement.prams.value}`,
           type: "COMMENT",
         };
+        break;
       default:
         throw new Error(`Unknown statement type: ${statement.type}`);
+        break;
     }
   }
 
-  function transpileStatements(statements) {
-    let r = statements.map(transpileStatement); //.join("\n");
+  function transpileStatements(
+    statements,
+    options,
+    mainUniFile,
+    mainMultiFile
+  ) {
+    // let r = statements.map(transpileStatement); //.join("\n");
+    let r = [];
+    for (let i = 0; i < statements.length; i++) {
+      r[i] = transpileStatement(
+        statements[i],
+        options,
+        mainUniFile,
+        mainMultiFile
+      );
+    }
+
     // console.log("TS: ", r);
     return r;
   }
@@ -273,7 +330,7 @@ defaultGredientMap: new THREE.DataTexture(
   //   return codeBlocks;
   // }
 
-  function transpile(ast) {
+  function transpile(ast, options, mainUniFile, mainMultiFile) {
     if (!Array.isArray(ast)) {
       throw new Error("AST must be an array");
     }
@@ -289,7 +346,12 @@ defaultGredientMap: new THREE.DataTexture(
       const node = stack.pop();
 
       if (node.TYPE === "STATEMENTS") {
-        const statementsCode = transpileStatements(node.VALUE);
+        const statementsCode = transpileStatements(
+          node.VALUE,
+          options,
+          mainUniFile,
+          mainMultiFile
+        );
         codeBlocks.push(...MakeARR(statementsCode));
       } else if (node.TYPE === "HEADER") {
         // Add opening spacer

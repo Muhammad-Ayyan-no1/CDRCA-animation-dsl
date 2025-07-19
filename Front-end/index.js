@@ -96,6 +96,6 @@ function updateRenderer(newJScode) {
   //   console.log(currentANIM);
 
   currentANIM = currentANIM.init(60, true);
-
+  console.log(newJScode);
   console.info("succesfully re rendered");
 }
