@@ -5,11 +5,22 @@ const postSemanticAnalyzier = require("./postSemanticAnalyizer");
 const fullTranspiler = require("./FullTranspiler");
 const postOptionalParser = require("./PostOptionalParsing");
 
-let parser_INS = parser.create(tokenizer.defaultTokenizer);
-let partial_transpiler_INS = Partial_transpiler.create(parser_INS);
-let postSemanticAnalyizer_INS = postSemanticAnalyzier.create();
-let fullTranspiler_INS = fullTranspiler.create();
-let postOptionalParser_INS = postOptionalParser.create();
+// system imports
+const embeedingSYS = require("./embeedingsSYS");
+
+// creations
+// system stuff
+let embeedingSYS_INS = embeedingSYS.create();
+
+// pipeline stuff
+let parser_INS = parser.create(tokenizer.defaultTokenizer, embeedingSYS_INS);
+let partial_transpiler_INS = Partial_transpiler.create(
+  parser_INS,
+  embeedingSYS_INS
+);
+let postSemanticAnalyizer_INS = postSemanticAnalyzier.create(embeedingSYS_INS);
+let fullTranspiler_INS = fullTranspiler.create(embeedingSYS_INS);
+let postOptionalParser_INS = postOptionalParser.create(embeedingSYS_INS);
 
 // uses basic but linux type paths  idk if windows dont have ~ etc
 function getVFScontentUnitpath(vfs, path) {
@@ -64,17 +75,36 @@ function getVFScontent(vfs, path) {
   return r;
 }
 
+function tillPartialTranspilationTranspiler_UniFile(cdrcaCode, options) {
+  // tokenization to parsing
+  let ast = parser_INS.parse(cdrcaCode);
+  // parses induvidual statments and chunks
+  let partialTranspiled = partial_transpiler_INS.transpile(
+    ast,
+    options,
+    mainUniFile,
+    mainMultiFile
+  );
+  return partialTranspiled;
+}
+
 //VFS = virtual file system
 function mainMultiFile(
   VFS,
   options = {},
-  mainPath = ["index.cdrca", "main.cdrca"]
+  mainPath = ["index.cdrca", "main.cdrca"],
+  uniFN = mainUniFile
 ) {
   let mainFile = getVFScontent(VFS, mainPath);
-  let transpiled = mainUniFile(mainFile, {
+  let transpiled = uniFN(mainFile, {
     VFS: {
       ...VFS,
       ...(options.VFS || {}),
+    },
+    // this is for system fns idk but users can edit it for super customization since its in options
+    sysProcessFNs: {
+      tillPartialTranspilationTranspiler_UniFile,
+      mainMultiFile,
     },
     ...(options || {}),
   });
@@ -137,14 +167,14 @@ console.log(
 !--- PROP ABC :: comment ---
 
 use MyProp(params) as Alias
-add new action abc STAY_TIME LERP_TIME MyActionInstance
+//add new action abc STAY_TIME LERP_TIME MyActionInstance
 
-def PROP MyProp {
+//def PROP MyProp {
  //console.log("hello world");
-  }
- def ACTION ACTION_NAME PROP_NAME METHOD_NAME PARAMS
- gredientMap = "value"  
- BGcolor = "color"
+  //}
+ //def ACTION ACTION_NAME PROP_NAME METHOD_NAME PARAMS
+ //gredientMap = "value"  
+ //BGcolor = "color"
 
 !---END---
 `,

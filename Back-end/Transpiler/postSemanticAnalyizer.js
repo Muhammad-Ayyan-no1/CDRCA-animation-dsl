@@ -1,4 +1,4 @@
-function create() {
+function create(embeedingSYS_INS) {
   // Performs a topological sort on the graph to determine channel order
   function topologicalSort(graph) {
     const visited = new Set();
@@ -356,7 +356,24 @@ function create() {
 
   function analyze(partialTranspiled, ast, options = {}) {
     // console.log(partialTranspiled);
+    // hositing engine
     let reIndexed = reIndex(partialTranspiled);
+
+    reIndexed = embeedingSYS_INS.openEmbeedingsMutliSetting(
+      reIndexed,
+      [
+        {
+          embedLevel: {
+            sequence: "after",
+            level: "hoistingEngine",
+          },
+        },
+      ],
+      "eaither",
+      [1, 1]
+    );
+
+    // auto commenting system
     let commented = options.addComments
       ? addCommentsToStatments(reIndexed)
       : reIndexed;
