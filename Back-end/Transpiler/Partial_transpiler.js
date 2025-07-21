@@ -48,8 +48,10 @@ ObjectAnimationSystem_INS.main({
 
 so we just needs to define stuff outside this obj like actions      and just translate rest to a js obj
 */
-const createTranspiler = function (parserINSs, embeedingSYS_INS) {
+const createTranspiler = function (sysPrams) {
   var PROPStoIndex_MAP = {};
+  var lastPROPStoIndex_MAP = -1;
+
   function createPROPdef(statment) {
     let code = `class ${statment.prams.name} extends`;
     let extendsClasses = [
@@ -67,37 +69,17 @@ ${statment.prams.code}
   }
 
   function createActionDef(statment) {
-    // this should create more of a js fn  for sending actions to various props
-    let fn = `function ACTION_${
-      statment.prams.name
-    }(PropsARR,preFN,postFN, btweenFNpre, btweenFNpost){
-    const inpPrams = [PropsARR,preFN,postFN, btweenFNpre, btweenFNpost]
-    preFN(inpPrams);
-    var prop;
-    var prams = [];
-    ${(function () {
-      let r = "";
-      for (let i = 0; i < statment.prams.parts.length; i++) {
-        let part = statment.prams.parts[i];
-        r += `
-        prop = PropsARR[Number(${JSON.stringify(
-          PROPStoIndex_MAP[part.propName]
-        )})||0],
+    let partsSTR = "";
+    for (let i = 0; i < statment.prams.parts.length; i++) {
+      let part = statment.prams.parts[i];
+      partsSTR += `
+      propsARR[${PROPStoIndex_MAP[part.propName]}].${part.methodName}(${part.prams})
+      `;
+    }
+    let fn = `function ${statment.prams.name}(propsARR){
+    ${partsSTR}
+    }`;
 
-        prams = [inpPrams,${i},${JSON.stringify(
-          PROPStoIndex_MAP[part.propName]
-        )}, ${JSON.stringify(part.propName)}, ${JSON.stringify(
-          part.methodName
-        )}, prop, ${JSON.stringify(statment.prams.prams)}];
-
-        btweenFNpre(prams);
-        prop.${part.methodName}(${statment.prams.prams});
-        btweenFNpost(prams);
-      }`;
-      }
-      return r;
-    })()}
-    postFN(inpPrams)`;
     return fn;
   }
   function createPropUSE(statement) {
@@ -159,6 +141,7 @@ ${statment.prams.code}
     //   type: "ADD_IMPORT",
     // };
     // embeding is partially transpiled tree not a string      we just directly inject the tree with current one
+    // direct injection is because we have syntax (transpiled template) and its a good practice
     // yes its recursive  TODO make it non recursive
     let embeded = options.sysProcessFNs.mainMultiFile(
       options.VFS,
@@ -194,6 +177,7 @@ ${statment.prams.code}
         return {
           statement: statement,
           value: createPROPdef(statement),
+
           type: "PROP_DEF",
           hoisted: {
             hoist: true,
@@ -212,7 +196,13 @@ ${statment.prams.code}
       case "ACTION_DEF":
         return {
           statement: statement,
-          value: createActionDef(statement),
+          value: createActionDef,
+          postForm: true,
+          postCalledUsageSYS: {
+            used: true,
+            usedAt: "",
+            proposition: "at",
+          },
           type: "ACTION_DEF",
           hoisted: {
             hoist: true,
@@ -229,6 +219,8 @@ ${statment.prams.code}
         };
         break;
       case "PROP_USE":
+        lastPROPStoIndex_MAP += 1;
+        PROPStoIndex_MAP[statement.prams.as] = lastPROPStoIndex_MAP;
         return {
           statement: statement,
           value: createPropUSE(statement),
@@ -521,7 +513,7 @@ defaultGredientMap: new THREE.DataTexture(
       }
     );
     // return codeBlocks.join("\n");
-    codeBlocks = embeedingSYS_INS.openEmbeedingsMutliSetting(
+    codeBlocks = sysPrams.embeedingSYS_INS.openEmbeedingsMutliSetting(
       codeBlocks,
       [
         {
@@ -540,7 +532,11 @@ defaultGredientMap: new THREE.DataTexture(
       "eaither",
       [1, 0]
     );
-
+    for (let i = 0; i < codeBlocks.length; i++) {
+      if (codeBlocks.formingSysUsed) {
+      }
+    }
+    // console.log(PROPStoIndex_MAP, lastPROPStoIndex_MAP);
     return codeBlocks;
   }
 

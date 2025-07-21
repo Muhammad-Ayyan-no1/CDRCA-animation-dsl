@@ -1,3 +1,7 @@
+// common systems
+const COMMON = require("./commonUtility");
+
+// processes
 const tokenizer = require("./Tokenizer");
 const parser = require("./Parser");
 const Partial_transpiler = require("./Partial_transpiler");
@@ -9,18 +13,23 @@ const postOptionalParser = require("./PostOptionalParsing");
 const embeedingSYS = require("./embeedingsSYS");
 
 // creations
+// common systems
+let COMMON_INS = COMMON.create();
+
 // system stuff
 let embeedingSYS_INS = embeedingSYS.create();
 
+const sysPrams = {
+  embeedingSYS_INS,
+  COMMON_INS,
+};
+
 // pipeline stuff
-let parser_INS = parser.create(tokenizer.defaultTokenizer, embeedingSYS_INS);
-let partial_transpiler_INS = Partial_transpiler.create(
-  parser_INS,
-  embeedingSYS_INS
-);
-let postSemanticAnalyizer_INS = postSemanticAnalyzier.create(embeedingSYS_INS);
-let fullTranspiler_INS = fullTranspiler.create(embeedingSYS_INS);
-let postOptionalParser_INS = postOptionalParser.create(embeedingSYS_INS);
+let parser_INS = parser.create(tokenizer.defaultTokenizer);
+let partial_transpiler_INS = Partial_transpiler.create(parser_INS);
+let postSemanticAnalyizer_INS = postSemanticAnalyzier.create(sysPrams);
+let fullTranspiler_INS = fullTranspiler.create(sysPrams);
+let postOptionalParser_INS = postOptionalParser.create(sysPrams);
 
 // uses basic but linux type paths  idk if windows dont have ~ etc
 function getVFScontentUnitpath(vfs, path) {
@@ -169,10 +178,10 @@ console.log(
 use MyProp(params) as Alias
 //add new action abc STAY_TIME LERP_TIME MyActionInstance
 
-//def PROP MyProp {
- //console.log("hello world");
-  //}
- //def ACTION ACTION_NAME PROP_NAME METHOD_NAME PARAMS
+def PROP MyProp {
+ console.log("hello world");
+  }
+ def ACTION ACTION_NAME MyProp METHOD_NAME PARAMS
  //gredientMap = "value"  
  //BGcolor = "color"
 

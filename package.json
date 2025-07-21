@@ -1,6 +1,33 @@
 {
+  "name": "cdrca",
+  "version": "0.0.2",
+  "main": "index.js",
+  "description": "cdrca is a dsl project for abstracting the animation, it use as an npm package is for programatically write videos such as new bots etc however cdrca is meant for cartoons and other type of animations too  atlhough limited by the license (as what ethics must follow)",
   "dependencies": {
     "express": "^5.1.0",
     "prettier": "^3.6.2"
+  },
+  "keywords": [
+    "cdrca",
+    "cdrca animation dsl",
+    "dsl",
+    "animation",
+    "cartoons",
+    "programatic video generation",
+    "npm",
+    "js",
+    "abstraction",
+    "programatic",
+    "transpiler"
+  ],
+  "author": {
+    "name": "Muhammad Ayyan",
+    "email": "cc1.dev.no1@gmail.com",
+    "url": "https://github.com/Muhammad-Ayyan-no1/CDRCA-animation-dsl"
+  },
+  "license": "SEE LICENSE IN LICENSE.md",
+  "repository": {
+    "type": "github",
+    "url": "https://github.com/Muhammad-Ayyan-no1/CDRCA-animation-dsl"
   }
 }

@@ -1,143 +1,117 @@
-# CDRCA Animation DSL
+# CDRCA
 
-**Custom DSL Renderer for Cartoon Animation**
+CDRCA is a transpiler and rendering engine designed to simplify the complex process of creating 2D, 3D, and especially 2.5D animations.
 
-In 2025 the easiest way to do 2.5D scenes animations is manuall frame by frame drawing, this repo fixes it
+---
 
-A domain-specific language designed to make cartoon creation accessible through high-level scripting while maintaining professional-grade output capabilities.
+## A Custom DSL for Animation
 
-## What is CDRCA?
+Creating compelling animations, whether through traditional frame-by-frame drawing or modern rigging, is challenging. 2.5D animation—which uses 2D assets in a 3D environment—presents its own difficulties, often limiting creators to simple camera pans and movements.
 
-CDRCA is a domain-specific language (DSL) that translates simple, time-based animation commands into 3D frames. It allows teams to create sophisticated animations using intuitive syntax that automatically handles complex 3D transformations and rendering.
+CDRCA aims to solve these problems by providing an intuitive Domain-Specific Language (DSL). It supports multiple programming paradigms (**functional**, **object-oriented**, and a **props-scene-action** model), allowing you to program, command, or simply write out your animation sequence.
 
-### Key Features
+---
 
-- **Hand-drawn Style Rendering** - Renders 3D geometry as cartoon-style visuals via THREE.js or external renderers
-- **Time-based Animation System** - Write animations using timing commands like "do that action after this seconds"
-- **Modular PROP System** - Define reusable objects, behaviors, and actions
-- **Advanced Simulations** - Planned physics, fluid dynamics, and particle systems with local hosting
-- **Multi-platform** - Web-based for basic scenes, Node.js backend for full features
-- **Export Flexibility** - Export to Blender or other 3D software as frame-by-frame object lists
+## Getting Started
 
-## How It Works
+You can get started with CDRCA in one of the following ways:
 
-CDRCA files (.cdrca) are parsed and translated to JavaScript, then rendered/tracked by the system at Renderer.js. The high-level code you write gets converted into 3D frames with proper morphing and interpolation between keyframes.
+- Download the latest release from the project page.
+- Clone the repository: `git clone https://github.com/Muhammad-Ayyan-no1/CDRCA-animation-dsl.git`
+- Install via npm: `npm install cdrca`
 
-## DSL Syntax Overview
+To see the language in action, check out the examples here: [CDRCA Examples](https://github.com/Muhammad-Ayyan-no1/CDRCA-animation-dsl/tree/main/examples).
 
-### Headers and Organization
+---
 
-```cdrca
-!--- HEADER_TYPE :: Comment ---
-Content goes here
-!---END---
+## Documentation
 
-:: SUB HEADER :: Comment
-Sub-content
-:: END
-```
+Official documentation is currently in development and will be available soon.
 
-### Core Statements
+---
 
-**Imports**
+## Team Paradigm
 
-```cdrca
-@IMPORT FilePath
-@AddImport FilePath
-```
+CDRCA is built to boost productivity for both solo creators and teams. The DSL is designed to be so straightforward that it allows for a clear separation of roles:
 
-**JavaScript Integration**
+- **Technical Artists/Developers:** Define props and the actions they can perform. This process is streamlined by the standard CDRCA library.
+- **Writers/Storytellers:** Use the pre-defined props and actions to write the story. They can focus purely on the narrative, defining scenes and character behaviors in a highly reusable and dynamic way.
 
-```cdrca
-JS {
-  // JavaScript code here
-}
-```
+---
 
-**PROP Definitions (Object Types)**
+## Basic Syntax Overview
 
-```cdrca
-def PROP PROP_NAME [abstracts OTHER_PROP] {
-  // JS code defining the prop
-}
+The syntax is designed to be intuitive. If you find it difficult, require tutorials, or have suggestions, please **[open an issue on GitHub](https://github.com/Muhammad-Ayyan-no1/CDRCA-animation-dsl/issues/new)**. The goal is for CDRCA to feel like a natural extension of the creative process, not another complex tool to learn.
 
-use PROP_NAME(params) as ALIAS
-```
+### Actions
 
-**Actions (What Objects Do)**
+Actions are defined using the `def action` keyword. You can chain multiple actions together in a single definition.
 
-```cdrca
-def ACTION ACTION_NAME PROP_NAME METHOD_NAME PARAMS [PROP_NAME METHOD_NAME PARAMS ...]
-add new actionName STAY_TIME LERP_TIME
-```
+- **Syntax:**
+  ```
+  def action <action_name> <prop_name> <action_type> [additional_information]
+  ```
+- **Example:**
+  ```
+  def action runFast myCharacter run "fast"
+  ```
 
-**Scene Defaults**
+### Organization
 
-```cdrca
-gradientMap :: value
-BGcolor :: color
-```
+CDRCA uses a header system for organization and imports.
 
-**Comments**
+- `@import myPath.cdrca`: Imports a library or tool.
+- `@addImport myPath.cdrca`: Inlines the content of another file, as if you had copy-pasted it.
 
-```cdrca
-// Comment text
-```
+You can also define scenes and add metadata using headers. A header block also implicitly defines a scene, or you can explicitly use the `NextSceneStart` keyword.
 
-### Example Structure
+- **Header Example:**
 
-```cdrca
-!--- PROP ABC :: Define properties ---
-def PROP MyProp {
-  console.log("hi");
-}
+  ```
+  ! --- MyHeaderKeywords 1 2 3 :: This is a comment ---
 
-:: SUB HEADER :: Usage
-use MyProp(params) as Alias
-:: END
-!---END---
-```
+  ! --- End ---
+  ```
 
-## Team Workflow
+- **Regular Comments:**
+  ```
+  // Comments similar to JS (JAVASCRIPT) or CPP (C++) or C
+  ```
 
-### Non-Technical Team (Scene Creators)
+### Further Syntax
 
-- Write .cdrca scene files using simple timing and action commands
-- Focus on storytelling, character movements, and scene composition
-- Use pre-defined PROPs created by the technical team
+For the rest of the syntax, please check the official documentation (once released) or explore the [provided examples](https://github.com/Muhammad-Ayyan-no1/CDRCA-animation-dsl/tree/main/examples).
 
-### Technical Team (PROP Developers)
+---
 
-- Create the PROP system - define what each object is and what actions it can perform
-- Implement complex behaviors and rendering logic
-- Build reusable components for scene creators
+## Ethical Use
 
-This separation allows non-technical team members to create scenes while a small technical team handles the underlying system architecture.
+CDRCA is an open-source tool intended for everyone. We believe in using technology to foster positive and ethical creativity. The legal terms of use are outlined in the `LICENSE.md` file. As a guiding principle, we ask that you use CDRCA responsibly and refrain from creating content with harmful or negative intentions.
 
-## Rendering Options
+---
 
-### Web-Based (Basic)
+## Contributing
 
-- Completely web-based rendering
-- Suitable for basic scenes
-- Limited simulation capabilities
+CDRCA is an open project, and contributions are welcome\! Feel free to fork the repository, make improvements, and submit a pull request.
 
-### Node.js Backend (Full-Featured)
+### Codebase Structure
 
-- Full simulation support (physics, fluids, etc.)
-- Audio integration and synchronization
-- High-quality rendering pipeline
-- Export capabilities to external formats
+- **CDRCA root**
+  - `index.js`
+  - **Front-end**
+    - `index.html`
+    - _other stuff_
+  - **Back-end**
+    - `serverManager.js`
+    - **Transpiler**
+    - **Servers**
+    - **Renderer (server side)**
+    - _other stuff_
+  - **examples**
+    - **basicUsage**
+    - **fullDemo**
+    - _other stuff_
 
-## Output Formats
+### Current Collaborators
 
-- **THREE.js Integration** - Direct web rendering
-- **Blender Import** - As frame-by-frame object lists over time
-- **External Renderers** - Compatible with various 3D software
-- **Frame Sequences** - Morphed 3D frames for animation
-
-## Open Source
-
-CDRCA is fully open-sourced under the IOSL license. See LICENSE.md for complete licensing details.
-
-The project aims to make cartoon animation more accessible by providing a high-level abstraction over complex 3D animation workflows, while still maintaining the flexibility to export to professional 3D software when needed.
+Currently, the project is being developed and maintained by a solo developer, [Muhammad Ayyan](https://github.com/Muhammad-Ayan-No1).
