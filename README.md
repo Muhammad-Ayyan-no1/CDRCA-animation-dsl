@@ -114,4 +114,4 @@ CDRCA is an open project, and contributions are welcome\! Feel free to fork the 
 
 ### Current Collaborators
 
-Currently, the project is being developed and maintained by a solo developer, [Muhammad Ayyan](https://github.com/Muhammad-Ayan-No1).
+Currently, the project is being developed and maintained by a solo developer, [Muhammad Ayyan](https://github.com/Muhammad-Ayyan-No1).
