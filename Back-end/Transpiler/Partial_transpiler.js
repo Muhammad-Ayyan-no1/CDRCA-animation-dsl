@@ -533,10 +533,7 @@ defaultGredientMap: new THREE.DataTexture(
       "eaither",
       [1, 0]
     );
-    for (let i = 0; i < codeBlocks.length; i++) {
-      if (codeBlocks.formingSysUsed) {
-      }
-    }
+
     // console.log(PROPStoIndex_MAP, lastPROPStoIndex_MAP);
     return codeBlocks;
   }
