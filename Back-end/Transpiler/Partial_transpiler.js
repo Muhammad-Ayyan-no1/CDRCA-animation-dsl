@@ -48,7 +48,7 @@ ObjectAnimationSystem_INS.main({
 
 so we just needs to define stuff outside this obj like actions      and just translate rest to a js obj
 */
-const createTranspiler = function (sysPrams) {
+const createTranspiler = function (parser, sysPrams) {
   var PROPStoIndex_MAP = {};
   var lastPROPStoIndex_MAP = -1;
 
@@ -513,6 +513,7 @@ defaultGredientMap: new THREE.DataTexture(
       }
     );
     // return codeBlocks.join("\n");
+    // console.log(sysPrams);
     codeBlocks = sysPrams.embeedingSYS_INS.openEmbeedingsMutliSetting(
       codeBlocks,
       [

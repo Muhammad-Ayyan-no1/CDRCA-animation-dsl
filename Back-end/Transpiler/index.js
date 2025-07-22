@@ -26,7 +26,7 @@ const sysPrams = {
 
 // pipeline stuff
 let parser_INS = parser.create(tokenizer.defaultTokenizer);
-let partial_transpiler_INS = Partial_transpiler.create(parser_INS);
+let partial_transpiler_INS = Partial_transpiler.create(parser_INS, sysPrams);
 let postSemanticAnalyizer_INS = postSemanticAnalyzier.create(sysPrams);
 let fullTranspiler_INS = fullTranspiler.create(sysPrams);
 let postOptionalParser_INS = postOptionalParser.create(sysPrams);

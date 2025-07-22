@@ -1,4 +1,4 @@
-function create(embeedingSYS_INS) {
+function create(sysPrams) {
   // Performs a topological sort on the graph to determine channel order
   function topologicalSort(graph) {
     const visited = new Set();
@@ -359,7 +359,7 @@ function create(embeedingSYS_INS) {
     // hositing engine
     let reIndexed = reIndex(partialTranspiled);
 
-    reIndexed = embeedingSYS_INS.openEmbeedingsMutliSetting(
+    reIndexed = sysPrams.embeedingSYS_INS.openEmbeedingsMutliSetting(
       reIndexed,
       [
         {
