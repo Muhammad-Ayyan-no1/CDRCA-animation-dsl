@@ -10,22 +10,15 @@ const fullTranspiler = require("./FullTranspiler");
 const postOptionalParser = require("./PostOptionalParsing");
 
 // system imports
-const embeedingSYS = require("./MINI_SYS/embeedingsSYS");
-const formingSYS = require("./MINI_SYS/formingSYS");
+const miniSYS = require("./MINI_SYS/index");
 
 // creations
 // common systems
 let COMMON_INS = COMMON.create();
 
 // system stuff
-let embeedingSYS_INS = embeedingSYS.create();
-let formingSYS_INS = formingSYS.create();
 
-const sysPrams = {
-  formingSYS_INS,
-  embeedingSYS_INS,
-  COMMON_INS,
-};
+const sysPrams = { miniSYS };
 
 // pipeline stuff
 let parser_INS = parser.create(tokenizer.defaultTokenizer);

@@ -514,25 +514,15 @@ defaultGredientMap: new THREE.DataTexture(
     );
     // return codeBlocks.join("\n");
     // console.log(sysPrams);
-    codeBlocks = sysPrams.embeedingSYS_INS.openEmbeedingsMutliSetting(
-      codeBlocks,
-      [
-        {
-          embedLevel: {
-            sequence: "at",
-            level: "PartialTranspiler",
-          },
-        },
-        {
-          embedLevel: {
-            sequence: "before",
-            level: "postSemanticAnalyzer",
-          },
-        },
-      ],
-      "eaither",
-      [1, 0]
-    );
+    // let process = {
+    //   name : "Partial_Transpiler",
+    //   propositions : ["at"]
+    // }
+    // let embeedingSettings = sysPrams.commonUtilities.formEmbeedingSettings()
+    // codeBlocks = sysPrams.embeedingSYS_INS.applyEmbeedings(
+    //   codeBlocks,
+    //   embeedingSettings
+    // );
 
     // console.log(PROPStoIndex_MAP, lastPROPStoIndex_MAP);
     return codeBlocks;

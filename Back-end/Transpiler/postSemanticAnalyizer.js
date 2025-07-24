@@ -359,19 +359,19 @@ function create(sysPrams) {
     // hositing engine
     let reIndexed = reIndex(partialTranspiled);
 
-    reIndexed = sysPrams.embeedingSYS_INS.openEmbeedingsMutliSetting(
-      reIndexed,
-      [
-        {
-          embedLevel: {
-            sequence: "after",
-            level: "hoistingEngine",
-          },
-        },
-      ],
-      "eaither",
-      [1, 1]
-    );
+    // reIndexed = sysPrams.embeedingSYS_INS.openEmbeedingsMutliSetting(
+    //   reIndexed,
+    //   [
+    //     {
+    //       embedLevel: {
+    //         sequence: "after",
+    //         level: "hoistingEngine",
+    //       },
+    //     },
+    //   ],
+    //   "eaither",
+    //   [1, 1]
+    // );
 
     // auto commenting system
     let commented = options.addComments
