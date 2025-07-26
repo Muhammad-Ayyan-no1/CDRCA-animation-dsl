@@ -324,16 +324,19 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
       // statments for hoisting
       case "ACTION_DEF":
       case "PROP_DEF":
+        // console.log(stat.type);
         if (
           !(
             sessionContext[stat.type].started &&
             !sessionContext[stat.type].ended
-          )
+          ) &&
+          !stat.metaData.formationHistory.embeeded.embeeded // this is to handel the import statments (intentionally different hositing if using import instead of addImport)
         ) {
           console.log(
             "bug in hoisting eaither core post semantic analyizer OR some plugin",
             sessionContext,
-            stat
+            stat,
+            "ignoring this warning , and continuing the item though pipeline, may cause weird behaviour"
           );
         }
         return [
@@ -408,7 +411,10 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
       "backgroundColor",
     ];
 
+    // console.log(PST.length);
+
     for (let i = 0; i < PST.length; i++) {
+      // console.log(PST[i]);
       let r = singleReshape(PST[i], sessionContext) || [];
 
       for (let j = 0; j < r.length; j++) {
@@ -482,6 +488,7 @@ currentANIM = ObjectAnimationSystem_INS.main(OAS_OBJ).init(60, true);`,
   }
   //PST = Post semantic tree
   function transpile(PST) {
+    // console.log(PST.length);
     let inps = reshapeToInps(PST) || {};
     // console.log(inps);
     inps = chunkInps(inps);

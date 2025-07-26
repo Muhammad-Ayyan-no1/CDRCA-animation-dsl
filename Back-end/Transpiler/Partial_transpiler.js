@@ -1,3 +1,5 @@
+const { embeeding } = require("./MINI_SYS");
+
 /*
 
 What our renderer API wants:
@@ -101,23 +103,23 @@ ${statment.prams.code}
     // };
     // embeding is partially transpiled tree not a string      we just directly inject the tree with current one
     // yes its recursive  TODO make it non recursive
+    // console.log(statement);
     let embeded = options.sysProcessFNs.mainMultiFile(
       options.VFS,
       options,
       statement.prams.path,
       options.sysProcessFNs.tillPartialTranspilationTranspiler_UniFile
     );
+    // console.log(embeded, options.VFS, statement);
     // console.log(embeded);
     return {
-      value: embeded,
-      embededSettings: {
-        embedLevel: {
-          sequence: "after",
-          level: "hoistingEngine",
-        },
+      embeeding: embeded,
+      miniSYS: {
+        using: { embeeding: true },
+        settings: { embeeding: [{ type: "postHoisted" }] },
+        metadata: { trace: true },
       },
       type: "IMPORT",
-      embeeding: true,
       hoisted: {
         hoist: true,
         group: {
@@ -151,15 +153,13 @@ ${statment.prams.code}
     );
     // console.log(embeded);
     return {
-      embededSettings: {
-        embedLevel: {
-          sequence: "at",
-          level: "PartialTranspiler",
-        },
+      embeeding: embeded,
+      type: "ADD_IMPORT",
+      miniSYS: {
+        using: { embeeding: true },
+        settings: { embeeding: [{ type: "Partial_Transpiler" }] },
+        metadata: { trace: true },
       },
-      value: embeded,
-      type: "IMPORT",
-      embeeding: true,
     };
   }
   function transpileStatement(statement, options) {
@@ -512,19 +512,17 @@ defaultGredientMap: new THREE.DataTexture(
         },
       }
     );
-    // return codeBlocks.join("\n");
-    // console.log(sysPrams);
-    // let process = {
-    //   name : "Partial_Transpiler",
-    //   propositions : ["at"]
-    // }
-    // let embeedingSettings = sysPrams.commonUtilities.formEmbeedingSettings()
-    // codeBlocks = sysPrams.embeedingSYS_INS.applyEmbeedings(
-    //   codeBlocks,
-    //   embeedingSettings
-    // );
 
-    // console.log(PROPStoIndex_MAP, lastPROPStoIndex_MAP);
+    // MINI sys  calling       (its at MINI_SYS directory handels the forming embeeding)
+    // using iife but although not needed  nice template to just copy and paste where ever mini sys used
+    (function () {
+      let processSettings = {
+        embeeding: [{ type: "any" }, { type: "Partial_Transpiler" }],
+        forming: [{ type: "any" }, { type: "Partial_Transpiler" }],
+      };
+      codeBlocks = sysPrams.miniSYS.applyMiniSys(codeBlocks, processSettings);
+    })();
+
     return codeBlocks;
   }
 

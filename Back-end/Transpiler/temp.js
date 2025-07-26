@@ -1,48 +1,30 @@
-function ACTION_ACTION_NAME(
-  PropsARR,
-  preFN,
-  postFN,
-  btweenFNpre,
-  btweenFNpost
-) {
-  const inpPrams = [PropsARR, preFN, postFN, btweenFNpre, btweenFNpost];
-  preFN(inpPrams);
-  var prop;
-  var prams = [];
+function createActionDef(statment) {
+  let partsSTR = "";
+  for (let i = 0; i < statment.prams.parts.length; i++) {
+    let part = statment.prams.parts[i];
+    partsSTR += `
+      propsARR[${PROPStoIndex_MAP[part.propName]}].${part.methodName}(${part.prams})    
+      `;
+  }
+  let fn = `function ${statment.prams.name}(propsARR){
+    ${partsSTR}
+    }`;
 
-  ((prop = PropsARR[Number(undefined) || 0]),
-    (prams = [
-      inpPrams,
-      0,
-      undefined,
-      "PROP_NAME",
-      "METHOD_NAME",
-      prop,
-      undefined,
-    ]));
-
-  btweenFNpre(prams);
-  prop.METHOD_NAME(undefined);
-  btweenFNpost(prams);
+  return fn;
 }
-postFN(inpPrams);
 
 class MyProp extends mixClasses([
   ObjectAnimationSystem_INS.CORE_3d_PROPSsceneSYS.Prop,
-]) {}
+]) {
+  // console.log("hello world");
+}
 
 var Alias = new MyProp(params);
-
-var MyActionInstance = {
-  stayTime: STAY_TIME,
-  lerpTime: LERP_TIME,
-  action: abc,
-};
 
 var defaultGredientMap = [];
 var OAS_OBJ = {
   defaultGredientMap: defaultGredientMap[0],
-  scenes: [{ PropsDef: [Alias], actions: [MyActionInstance] }],
+  scenes: [{ PropsDef: [Alias], actions: [] }],
 };
 
 // push to the anim (renderer) pipeline

@@ -359,19 +359,15 @@ function create(sysPrams) {
     // hositing engine
     let reIndexed = reIndex(partialTranspiled);
 
-    // reIndexed = sysPrams.embeedingSYS_INS.openEmbeedingsMutliSetting(
-    //   reIndexed,
-    //   [
-    //     {
-    //       embedLevel: {
-    //         sequence: "after",
-    //         level: "hoistingEngine",
-    //       },
-    //     },
-    //   ],
-    //   "eaither",
-    //   [1, 1]
-    // );
+    (function () {
+      let processSettings = {
+        embeeding: [{ type: "any" }, { type: "postHoisted" }],
+        forming: [{ type: "any" }, { type: "postHoisted" }],
+      };
+      // console.log("B", reIndexed);
+      reIndexed = sysPrams.miniSYS.applyMiniSys(reIndexed, processSettings);
+      // console.log("A", reIndexed);
+    })();
 
     // auto commenting system
     let commented = options.addComments

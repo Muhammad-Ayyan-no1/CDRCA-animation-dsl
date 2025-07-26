@@ -26,15 +26,32 @@ function create() {
   }
 
   function applyEmbeedings(processSettings, items) {
+    // console.log(items.length);
     let r = [];
     for (let i = 0; i < items.length; i++) {
       let j = satisfiesConditions(processSettings, items[i]);
       if (typeof j === "number" && Array.isArray(items[i].embeeding)) {
-        r.push(...items[i].embeeding);
+        // console.log("satisfied (debugging)", items[i]);
+        let spreaded = items[i].embeeding;
+        // console.log(spreaded);
+        for (let j = 0; j < spreaded.length; j++) {
+          if (!spreaded[j].metaData) spreaded[j].metaData = {};
+          if (!spreaded[j].metaData.formationHistory)
+            spreaded[j].metaData.formationHistory = {};
+
+          spreaded[j].metaData.formationHistory.embeeded = {
+            embeeded: true,
+            spreadedItem: j,
+            embeedingNum: i,
+            raw: items[i],
+          };
+        }
+        r.push(...spreaded);
       } else {
         r.push(items[i]);
       }
     }
+    // console.log(r.length);
     return r;
   }
 

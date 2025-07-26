@@ -293,9 +293,10 @@ const parserConstructor = function (defaultTokenizer) {
     }
 
     function parseImport(tokens, pos, type) {
+      // console.log(type);
       pos++;
       if (pos >= tokens.length) throw new Error(`${type} missing file path`);
-      const path = tokens[pos].value;
+      const path = tokens[pos].value.slice(1, -1);
       pos++;
       while (pos < tokens.length && tokens[pos].type !== "newline") pos++;
       return { type, prams: { path }, newPosition: pos };

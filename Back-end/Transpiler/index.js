@@ -100,6 +100,7 @@ function mainMultiFile(
   mainPath = ["index.cdrca", "main.cdrca"],
   uniFN = mainUniFile
 ) {
+  // console.log(VFS);
   let mainFile = getVFScontent(VFS, mainPath);
   let transpiled = uniFN(mainFile, {
     VFS: {
@@ -113,6 +114,7 @@ function mainMultiFile(
     },
     ...(options || {}),
   });
+  // console.log(transpiled);
   return transpiled;
 }
 
@@ -126,6 +128,7 @@ function mainUniFile(cdrcaCode, options) {
     mainUniFile,
     mainMultiFile
   );
+  // console.log(partialTranspiled.length);
   // orders those chunks (hoists etc) and adds automatic comments (options)
   let postSemanticAnalyzed = postSemanticAnalyizer_INS.analyze(
     partialTranspiled,
@@ -168,7 +171,7 @@ console.log(
   mainMultiFile(
     {
       "index.cdrca": `
-      @IMPORT ./a.cdrca
+      @IMPORT "./a.cdrca"
 !--- PROP ABC :: comment ---
 
 use MyProp(params) as Alias
@@ -184,9 +187,9 @@ def PROP MyProp {
 !---END---
 `,
       "a.cdrca": `
-JS {
-console.log("hello world");
-}
+def PROP MyProp1 {
+ console.log("hello world");
+  }
 `,
     },
     {
